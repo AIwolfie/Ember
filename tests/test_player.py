@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 from PyQt6.QtWidgets import QApplication
 
 from ember.models import Song
-from ember.player import MAX_QUEUE_SIZE, PlaybackCore
+from ember.player import MAX_QUEUE_SIZE, MAX_STREAM_RETRIES, RESUME_BACKSTEP_MS, PlaybackCore
 
 
 def _get_qapp() -> QApplication:
@@ -218,4 +218,43 @@ def test_playback_core_is_playing_pause_resume() -> None:
     core.player.playbackState.return_value = QMediaPlayer.PlaybackState.PausedState
     core.resume()
     core.player.play.assert_called_once()
+
+
+def test_playback_core_resource_error_retries_current_stream() -> None:
+    from PyQt6.QtMultimedia import QMediaPlayer
+
+    core = _create_core()
+    song = Song(video_id="s1", title="Song 1", artist="Artist")
+    core.queue = [song, Song(video_id="s2", title="Song 2", artist="Artist")]
+    core.cursor = 0
+    core._wanted = "s1"
+    core.player.position = MagicMock(return_value=45_000)  # type: ignore[method-assign]
+    core.player.stop = MagicMock()  # type: ignore[method-assign]
+    core.forward = MagicMock()  # type: ignore[method-assign]
+
+    core._relay_error(QMediaPlayer.Error.ResourceError, "Demuxing failed")
+
+    core._start_load.assert_called_once_with(song)
+    core.forward.assert_not_called()
+    assert core._resume_position_ms == 45_000 - RESUME_BACKSTEP_MS
+    assert core._failed_id is None
+
+
+def test_playback_core_resource_error_skips_after_retry_budget() -> None:
+    from PyQt6.QtMultimedia import QMediaPlayer
+
+    core = _create_core()
+    song = Song(video_id="s1", title="Song 1", artist="Artist")
+    core.queue = [song, Song(video_id="s2", title="Song 2", artist="Artist")]
+    core.cursor = 0
+    core._wanted = "s1"
+    core._retry_id = "s1"
+    core._retry_count = MAX_STREAM_RETRIES
+    core.player.position = MagicMock(return_value=45_000)  # type: ignore[method-assign]
+    core.player.stop = MagicMock()  # type: ignore[method-assign]
+    core.forward = MagicMock()  # type: ignore[method-assign]
+
+    core._relay_error(QMediaPlayer.Error.ResourceError, "Demuxing failed")
+
+    core.forward.assert_called_once_with(force=True)
 

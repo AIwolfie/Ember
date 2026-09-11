@@ -31,6 +31,8 @@ log = logging.getLogger(__name__)
 
 MAX_AUTO_SKIP = 3  # consecutive dead tracks before we stop advancing
 MAX_QUEUE_SIZE = 200  # prevent infinite queue growth from auto-radio
+MAX_STREAM_RETRIES = 999  # transient network/demux failures before skipping
+RESUME_BACKSTEP_MS = 1000  # resume slightly before failure point
 
 
 class PlaybackCore(QObject):
@@ -93,6 +95,9 @@ class PlaybackCore(QObject):
         self._radio_seed: Optional[str] = None
         self._failed_id: Optional[str] = None
         self._error_streak = 0
+        self._retry_id: Optional[str] = None
+        self._retry_count = 0
+        self._resume_position_ms: Optional[int] = None
 
         self.player.positionChanged.connect(self._relay_progress)
         self.player.durationChanged.connect(self._relay_length)
@@ -149,6 +154,9 @@ class PlaybackCore(QObject):
 
         self._wanted = song.video_id
         self._failed_id = None  # allow manual retries of failed tracks
+        self._retry_id = song.video_id
+        self._retry_count = 0
+        self._resume_position_ms = None
         self._switching = True
         self.loading_changed.emit(True)
         self.song_changed.emit(song)
@@ -418,8 +426,12 @@ class PlaybackCore(QObject):
             return  # user already moved on
         song.stream_url = url
         self._failed_id = None
+        resume_at = self._resume_position_ms
+        self._resume_position_ms = None
         self.player.setSource(QUrl(url))
         self.player.play()
+        if resume_at is not None:
+            QTimer.singleShot(350, lambda: self._resume_if_current(song.video_id, resume_at))
         self._switching = False
         self.loading_changed.emit(False)
 
@@ -510,6 +522,22 @@ class PlaybackCore(QObject):
             self.forward(force=True)
 
     def _relay_error(self, error: QMediaPlayer.Error, message: str) -> None:
+        current = self.current
+        position_ms = max(0, int(self.player.position()))
+        if (
+            error == QMediaPlayer.Error.ResourceError
+            and current is not None
+            and self._wanted == current.video_id
+            and self._retry_stream(current, position_ms)
+        ):
+            log.warning(
+                "media stream interrupted for %s at %sms; retrying fresh URL: %s",
+                current.video_id,
+                position_ms,
+                message,
+            )
+            return
+
         # Guard on track identity, not the source URL. Every resolve mints a new
         # signed URL, so comparing strings never matched, the guard failed open,
         # and the backend walked the queue retrying the same dead track — that is
@@ -532,6 +560,30 @@ class PlaybackCore(QObject):
         self._error_streak = 0
         if self.queue:
             self.notice.emit("playback hiccup")
+
+    def _retry_stream(self, song: Song, position_ms: int) -> bool:
+        """Refresh current stream URL after transient network/demux failure."""
+        if self._retry_id != song.video_id:
+            self._retry_id = song.video_id
+            self._retry_count = 0
+        if self._retry_count >= MAX_STREAM_RETRIES:
+            return False
+
+        self._retry_count += 1
+        self._resume_position_ms = max(0, position_ms - RESUME_BACKSTEP_MS)
+        self._failed_id = None
+        self._switching = True
+        self.loading_changed.emit(True)
+        self.notice.emit("stream interrupted - reconnecting")
+        self.player.stop()
+        self._start_load(song)
+        return True
+
+    def _resume_if_current(self, video_id: str, position_ms: int) -> None:
+        """Seek resumed stream only if user has not switched tracks."""
+        current = self.current
+        if self._wanted == video_id and current is not None and current.video_id == video_id:
+            self.player.setPosition(position_ms)
 
     # -------------------------------------------------------- device switching
     def _setup_device_monitoring(self) -> None:
