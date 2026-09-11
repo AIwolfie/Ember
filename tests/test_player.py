@@ -184,6 +184,18 @@ def test_playback_core_fade_out_and_cancel() -> None:
     assert core.volume() == 80
 
 
+def test_playback_core_reroute_reuses_audio_output() -> None:
+    core = _create_core()
+    original_output = core.output
+    core.output.setDevice = MagicMock()  # type: ignore[method-assign]
+    core._monitored = None
+
+    core._reroute_audio_output()
+
+    assert core.output is original_output
+    core.output.setDevice.assert_called_once()
+
+
 def test_playback_core_is_playing_pause_resume() -> None:
     from PyQt6.QtMultimedia import QMediaPlayer
     core = _create_core()

@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from ember.config import DEFAULT_OPACITY, SETTINGS_OPACITY, SETTINGS_REPEAT, SETTINGS_SPEED
+from ember.audio_devices import DEFAULT_AUDIO_DEVICE_ID
+from ember.config import (
+    DEFAULT_OPACITY,
+    SETTINGS_AUDIO_DEVICE,
+    SETTINGS_OPACITY,
+    SETTINGS_REPEAT,
+    SETTINGS_SPEED,
+)
 from ember.panel import SpringPhysics
 
 
@@ -33,6 +40,8 @@ def test_spring_physics_custom_damping_and_stiffness() -> None:
 
 def test_feature_settings_keys() -> None:
     assert 60 <= DEFAULT_OPACITY <= 100
+    assert DEFAULT_AUDIO_DEVICE_ID == "default"
+    assert SETTINGS_AUDIO_DEVICE == "audio/device"
     assert SETTINGS_OPACITY == "ui/opacity"
     assert SETTINGS_REPEAT == "playback/repeat"
     assert SETTINGS_SPEED == "playback/speed"

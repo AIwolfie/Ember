@@ -1276,6 +1276,7 @@ class FloatingPanel(QWidget):
         dlg.theme_changed.connect(self.reload_theme)
         dlg.opacity_changed.connect(self.set_window_opacity_percent)
         dlg.normalization_changed.connect(self.core.set_normalize_volume)
+        dlg.audio_device_changed.connect(self.core.set_audio_device)
         dlg.endless_changed.connect(self._on_endless_from_settings)
         dlg.hotkeys_changed.connect(lambda _: self.hotkeys_updated.emit())
         dlg.exec()

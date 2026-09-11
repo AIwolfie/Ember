@@ -18,8 +18,9 @@ import logging
 from typing import Any, Callable, List, Optional
 
 from PyQt6.QtCore import QObject, QThreadPool, QTimer, QUrl, pyqtSignal
-from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
+from PyQt6.QtMultimedia import QAudioDevice, QAudioOutput, QMediaDevices, QMediaPlayer
 
+from .audio_devices import DEFAULT_AUDIO_DEVICE_ID, device_key, find_audio_output
 from .catalog import CatalogSource
 from .config import DEFAULT_VOLUME, RADIO_DEPTH, SEEK_MS_BACKSTEP
 from .jobs import LinkJob, LoadJob, RadioJob
@@ -72,6 +73,11 @@ class PlaybackCore(QObject):
         self._normalize_volume = False
         self._apply_volume()
 
+        self._default_output_id: Optional[str] = None
+        self._selected_output_id = DEFAULT_AUDIO_DEVICE_ID
+        self._monitored: Optional[QMediaDevices] = None
+        self._setup_device_monitoring()
+
         self.queue: List[Song] = []
         self.cursor = -1
         self.auto_queue = True
@@ -93,6 +99,9 @@ class PlaybackCore(QObject):
         self.player.playbackStateChanged.connect(self._relay_state)
         self.player.mediaStatusChanged.connect(self._relay_media_status)
         self.player.errorOccurred.connect(self._relay_error)
+
+        if self._monitored is not None:
+            self._monitored.audioOutputsChanged.connect(self._on_audio_outputs_changed)
 
     # ------------------------------------------------------------------ state
     @property
@@ -357,6 +366,27 @@ class PlaybackCore(QObject):
         """Toggle endless queue auto-expansion."""
         self.auto_queue = bool(enabled)
 
+    def set_audio_device(self, device_id: str) -> None:
+        """Route playback to a chosen output device, or follow system default."""
+        target_id = device_id or DEFAULT_AUDIO_DEVICE_ID
+        device = find_audio_output(target_id)
+        if target_id != DEFAULT_AUDIO_DEVICE_ID and device is None:
+            self._selected_output_id = target_id
+            self._reroute_audio_output()
+            self.notice.emit("audio device unavailable")
+            return
+
+        self._selected_output_id = target_id
+        self._reroute_audio_output(device)
+        if target_id == DEFAULT_AUDIO_DEVICE_ID:
+            self.notice.emit("audio device: system default")
+        elif device is not None:
+            self.notice.emit(f"audio device: {device.description()}")
+
+    def audio_device(self) -> str:
+        """Persisted selected output device key."""
+        return self._selected_output_id
+
     # ------------------------------------------------------------- entry points
     def open_link(self, url: str) -> None:
         """Resolve a pasted URL into a Song, then play it like anything else."""
@@ -502,3 +532,53 @@ class PlaybackCore(QObject):
         self._error_streak = 0
         if self.queue:
             self.notice.emit("playback hiccup")
+
+    # -------------------------------------------------------- device switching
+    def _setup_device_monitoring(self) -> None:
+        """Watch for output-device changes so playback survives Bluetooth toggles."""
+        try:
+            self._monitored = QMediaDevices()
+            current = self._monitored.defaultAudioOutput()
+            if not current.isNull():
+                self._default_output_id = device_key(current)
+        except Exception as exc:  # noqa: BLE001 - multimedia surface varies by build
+            log.debug("audio device monitoring unavailable: %s", exc)
+            self._monitored = None
+
+    def _on_audio_outputs_changed(self) -> None:
+        """Re-hook audio when default changes or selected device changes availability."""
+        if self._monitored is None:
+            return
+        if self._selected_output_id != DEFAULT_AUDIO_DEVICE_ID:
+            self._reroute_audio_output(find_audio_output(self._selected_output_id))
+            return
+
+        try:
+            new_default = self._monitored.defaultAudioOutput()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("skipping device check: %s", exc)
+            return
+
+        if new_default.isNull():
+            return
+
+        new_id = device_key(new_default)
+        if new_id == self._default_output_id:
+            return
+
+        self._default_output_id = new_id
+        log.info("default audio output changed — re-routing playback")
+        self._reroute_audio_output()
+
+    def _reroute_audio_output(self, device: Optional[QAudioDevice] = None) -> None:
+        """Switch current QAudioOutput to selected device/default."""
+        try:
+            if device is None and self._monitored is not None:
+                device = self._monitored.defaultAudioOutput()
+            if device is not None and not device.isNull():
+                self.output.setDevice(device)
+            else:
+                self.output.setDevice(QMediaDevices.defaultAudioOutput())
+            self._apply_volume()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("audio output reroute skipped: %s", exc)
