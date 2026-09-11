@@ -33,6 +33,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QVBoxLayout,
+    QSystemTrayIcon,
     QWidget,
 )
 
@@ -44,7 +45,10 @@ from .config import (
     ART_COMPACT,
     ART_HERO,
     ARTWORK_CACHE_LIMIT,
+    CLOSE_ACTION_EXIT,
+    CLOSE_ACTION_TRAY,
     COMPACT_HEIGHT,
+    DEFAULT_CLOSE_ACTION,
     DEFAULT_OPACITY,
     EXPANDED_HEIGHT,
     PANEL_WIDTH,
@@ -52,6 +56,7 @@ from .config import (
     QUEUE_VIEW_HEIGHT,
     SEARCH_DEBOUNCE_MS,
     SETTINGS_AUTO_QUEUE,
+    SETTINGS_CLOSE_ACTION,
     SETTINGS_HOTKEYS,
     SETTINGS_NORMALIZE_VOLUME,
     SETTINGS_OPACITY,
@@ -1718,6 +1723,19 @@ class FloatingPanel(QWidget):
         self._set_status("endless on" if enabled else "endless off")
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        action = str(self.settings.value(SETTINGS_CLOSE_ACTION, DEFAULT_CLOSE_ACTION))
+        if action == "minimize":
+            action = CLOSE_ACTION_TRAY
+        if action == CLOSE_ACTION_TRAY:
+            event.ignore()
+            if QSystemTrayIcon.isSystemTrayAvailable():
+                self.hide()
+            else:
+                self.showMinimized()
+            return
+        if action != CLOSE_ACTION_EXIT:
+            log.debug("unknown close action %r; exiting", action)
+
         if self._sleep_timer.isActive():
             self._sleep_timer.stop()
         self.core.cancel_fade()

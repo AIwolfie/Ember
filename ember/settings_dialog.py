@@ -29,11 +29,15 @@ from PyQt6.QtWidgets import (
 
 from .audio_devices import DEFAULT_AUDIO_DEVICE_ID, audio_outputs, device_key
 from .config import (
+    CLOSE_ACTION_EXIT,
+    CLOSE_ACTION_TRAY,
+    DEFAULT_CLOSE_ACTION,
     DEFAULT_OPACITY,
     Palette,
     SETTINGS_AUDIO_DEVICE,
     SETTINGS_AUTO_QUEUE,
     SETTINGS_HOTKEYS,
+    SETTINGS_CLOSE_ACTION,
     SETTINGS_NORMALIZE_VOLUME,
     SETTINGS_OPACITY,
     SETTINGS_THEME,
@@ -88,7 +92,7 @@ class SettingsDialog(QDialog):
             | Qt.WindowType.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setFixedSize(390, 570)
+        self.setFixedSize(390, 600)
 
         self._build()
         self._load_values()
@@ -202,6 +206,16 @@ class SettingsDialog(QDialog):
         self.chk_toast.toggled.connect(self._on_toast_toggled)
         layout.addWidget(self.chk_toast)
 
+        close_row = QHBoxLayout()
+        close_label = QLabel("Close Button:", self)
+        self.close_combo = QComboBox(self)
+        self.close_combo.addItem("Exit App", CLOSE_ACTION_EXIT)
+        self.close_combo.addItem("Keep Playing in Tray", CLOSE_ACTION_TRAY)
+        self.close_combo.currentIndexChanged.connect(self._on_close_action_selected)
+        close_row.addWidget(close_label)
+        close_row.addWidget(self.close_combo, 1)
+        layout.addLayout(close_row)
+
         # Hotkeys
         hotkey_hdr = QHBoxLayout()
         key_ico = QLabel(self)
@@ -284,6 +298,12 @@ class SettingsDialog(QDialog):
         toast = str(self.settings.value(SETTINGS_TOAST_ENABLED, "true")).lower() in ("true", "1", "yes")
         self.chk_toast.setChecked(toast)
 
+        close_action = str(self.settings.value(SETTINGS_CLOSE_ACTION, DEFAULT_CLOSE_ACTION))
+        idx = self.close_combo.findData(close_action)
+        if idx < 0:
+            idx = self.close_combo.findData(DEFAULT_CLOSE_ACTION)
+        self.close_combo.setCurrentIndex(max(0, idx))
+
         saved_device = str(self.settings.value(SETTINGS_AUDIO_DEVICE, DEFAULT_AUDIO_DEVICE_ID))
         idx = self.device_combo.findData(saved_device)
         if idx < 0:
@@ -338,6 +358,10 @@ class SettingsDialog(QDialog):
         device_id = str(self.device_combo.itemData(index) or DEFAULT_AUDIO_DEVICE_ID)
         self.settings.setValue(SETTINGS_AUDIO_DEVICE, device_id)
         self.audio_device_changed.emit(device_id)
+
+    def _on_close_action_selected(self, index: int) -> None:
+        action = str(self.close_combo.itemData(index) or DEFAULT_CLOSE_ACTION)
+        self.settings.setValue(SETTINGS_CLOSE_ACTION, action)
 
     def _validate_hotkeys(self) -> None:
         conflicts: List[str] = []

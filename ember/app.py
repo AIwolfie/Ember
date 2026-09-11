@@ -110,7 +110,10 @@ def _configure_logging(log_dir: Path) -> None:
 # ------------------------------------------------------------------ lifecycle
 def _surface(panel: FloatingPanel) -> None:
     """Bring the floating panel to front and assert topmost focus."""
-    panel.show()
+    if panel.isMinimized():
+        panel.showNormal()
+    else:
+        panel.show()
     panel.raise_()
     panel.activateWindow()
     panel.ensure_topmost()

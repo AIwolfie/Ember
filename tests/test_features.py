@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from ember.audio_devices import DEFAULT_AUDIO_DEVICE_ID
 from ember.config import (
+    CLOSE_ACTION_EXIT,
+    CLOSE_ACTION_TRAY,
+    DEFAULT_CLOSE_ACTION,
     DEFAULT_OPACITY,
     SETTINGS_AUDIO_DEVICE,
+    SETTINGS_CLOSE_ACTION,
     SETTINGS_OPACITY,
     SETTINGS_REPEAT,
     SETTINGS_SPEED,
@@ -42,6 +46,12 @@ def test_feature_settings_keys() -> None:
     assert 60 <= DEFAULT_OPACITY <= 100
     assert DEFAULT_AUDIO_DEVICE_ID == "default"
     assert SETTINGS_AUDIO_DEVICE == "audio/device"
+    assert SETTINGS_CLOSE_ACTION == "ui/close_action"
+    assert DEFAULT_CLOSE_ACTION == CLOSE_ACTION_EXIT
+    assert {CLOSE_ACTION_EXIT, CLOSE_ACTION_TRAY} == {
+        "exit",
+        "tray",
+    }
     assert SETTINGS_OPACITY == "ui/opacity"
     assert SETTINGS_REPEAT == "playback/repeat"
     assert SETTINGS_SPEED == "playback/speed"

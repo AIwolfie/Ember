@@ -54,9 +54,14 @@ SETTINGS_THEME = "ui/theme"
 SETTINGS_TOAST_ENABLED = "ui/toast_enabled"
 SETTINGS_HOTKEYS = "ui/hotkeys"
 SETTINGS_OPACITY = "ui/opacity"
+SETTINGS_CLOSE_ACTION = "ui/close_action"
 SETTINGS_REPEAT = "playback/repeat"
 SETTINGS_SPEED = "playback/speed"
 DEFAULT_OPACITY = 96
+
+CLOSE_ACTION_EXIT = "exit"
+CLOSE_ACTION_TRAY = "tray"
+DEFAULT_CLOSE_ACTION = CLOSE_ACTION_EXIT
 
 
 class Palette:
