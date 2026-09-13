@@ -57,7 +57,7 @@ No fluff, no cap — here is everything genuinely upgraded in this fork:
 | 📌 **Always on top** | Floats cleanly over IDEs, browsers, and terminal windows without ever stealing keyboard focus |
 | 🖥️ **Tray presence** | Play, pause, skip, or summon from the Windows system tray icon |
 | ⌨️ **Hotkeys** | Global chords for every common action, fully customizable and conflict-checked |
-| 💾 **Remembers everything** | Window position, volume, opacity, theme, favorites, and playback history persisted across reboots |
+| 💾 **Remembers everything** | Window position, volume, opacity, theme, repeat mode, playback speed, favorites, and playback history persisted across reboots |
 
 ---
 
