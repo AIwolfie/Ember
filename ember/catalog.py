@@ -1,11 +1,3 @@
-"""
-catalog.py
-Read-only access to the public YouTube Music catalogue: free-text search and
-the "watch playlist" recommendation graph used to keep playback endless.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
-"""
-
 from __future__ import annotations
 
 import logging
