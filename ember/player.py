@@ -357,6 +357,20 @@ class PlaybackCore(QObject):
         """Toggle endless queue auto-expansion."""
         self.auto_queue = bool(enabled)
 
+    def restore_session(self, repeat_mode: str, rate: float) -> None:
+        """Silently restore persisted repeat mode and playback rate.
+
+        Unlike set_repeat_mode()/set_playback_rate() this emits no status
+        notices — it runs once at startup before the user has done anything.
+        The mode/rate signals still fire so the panel buttons repaint.
+        """
+        if repeat_mode in ("off", "all", "one"):
+            self.repeat_mode = repeat_mode
+            self.repeat_mode_changed.emit(self.repeat_mode)
+        self.playback_rate = max(0.5, min(2.5, float(rate)))
+        self.player.setPlaybackRate(self.playback_rate)
+        self.rate_changed.emit(self.playback_rate)
+
     # ------------------------------------------------------------- entry points
     def open_link(self, url: str) -> None:
         """Resolve a pasted URL into a Song, then play it like anything else."""

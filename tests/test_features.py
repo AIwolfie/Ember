@@ -37,3 +37,37 @@ def test_feature_settings_keys() -> None:
     assert SETTINGS_REPEAT == "playback/repeat"
     assert SETTINGS_SPEED == "playback/speed"
 
+
+
+def test_as_repeat_mode_accepts_valid_modes() -> None:
+    from ember.app import _as_repeat_mode
+
+    assert _as_repeat_mode("all", "off") == "all"
+    assert _as_repeat_mode("ONE", "off") == "one"
+    assert _as_repeat_mode(" off ", "all") == "off"
+
+
+def test_as_repeat_mode_falls_back_on_garbage() -> None:
+    from ember.app import _as_repeat_mode
+
+    assert _as_repeat_mode("shuffle", "off") == "off"
+    assert _as_repeat_mode("", "off") == "off"
+    assert _as_repeat_mode(None, "off") == "off"
+
+
+def test_as_playback_rate_valid_range() -> None:
+    from ember.app import _as_playback_rate
+
+    assert _as_playback_rate("1.25", 1.0) == 1.25
+    assert _as_playback_rate(1.5, 1.0) == 1.5
+    assert _as_playback_rate("0.75", 1.0) == 0.75
+
+
+def test_as_playback_rate_clamps_and_falls_back() -> None:
+    from ember.app import _as_playback_rate
+
+    assert _as_playback_rate("9.9", 1.0) == 2.5
+    assert _as_playback_rate("0.1", 1.0) == 0.5
+    assert _as_playback_rate("not-a-number", 1.0) == 1.0
+    assert _as_playback_rate(None, 1.0) == 1.0
+    assert _as_playback_rate(float("nan"), 1.0) == 1.0

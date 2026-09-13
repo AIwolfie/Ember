@@ -33,6 +33,8 @@ from .config import (
     SETTINGS_NORMALIZE_VOLUME,
     SETTINGS_POS_X,
     SETTINGS_POS_Y,
+    SETTINGS_REPEAT,
+    SETTINGS_SPEED,
     SETTINGS_THEME,
     SETTINGS_VOLUME,
 )
@@ -76,6 +78,23 @@ def _as_bool(raw: Any, fallback: bool) -> bool:
     if text in {"false", "0", "no", "off"}:
         return False
     return fallback
+
+
+def _as_repeat_mode(raw: Any, fallback: str) -> str:
+    """Coerce a stored value into a valid repeat mode name."""
+    text = str(raw or "").strip().lower()
+    return text if text in {"off", "all", "one"} else fallback
+
+
+def _as_playback_rate(raw: Any, fallback: float) -> float:
+    """Coerce a stored value into a sane playback rate factor (0.5x-2.5x)."""
+    try:
+        rate = float(raw)
+    except (TypeError, ValueError):
+        return fallback
+    if rate != rate:  # NaN check — float("nan") passes the try block
+        return fallback
+    return max(0.5, min(2.5, rate))
 
 
 # -------------------------------------------------------------------- logging
@@ -149,6 +168,13 @@ def _restore_session(panel: FloatingPanel, core: PlaybackCore, settings: QSettin
     panel.endless.setChecked(endless)
     panel.endless.blockSignals(False)
 
+    # Repeat mode and playback speed persist across sessions too (silent restore,
+    # the mode/rate signals repaint the panel buttons without status notices)
+    core.restore_session(
+        _as_repeat_mode(settings.value(SETTINGS_REPEAT), "off"),
+        _as_playback_rate(settings.value(SETTINGS_SPEED), 1.0),
+    )
+
     if _as_bool(settings.value(SETTINGS_EXPANDED), False):
         panel.expand()
 
@@ -162,6 +188,8 @@ def _persist(panel: FloatingPanel, core: PlaybackCore, settings: QSettings) -> N
     settings.setValue(SETTINGS_VOLUME, core.volume())
     settings.setValue(SETTINGS_AUTO_QUEUE, core.auto_queue)
     settings.setValue(SETTINGS_NORMALIZE_VOLUME, core.normalize_volume)
+    settings.setValue(SETTINGS_REPEAT, core.repeat_mode)
+    settings.setValue(SETTINGS_SPEED, core.playback_rate)
     settings.setValue(SETTINGS_THEME, Palette.current_theme)
     settings.sync()
 
