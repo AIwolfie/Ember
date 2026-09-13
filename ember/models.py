@@ -1,8 +1,6 @@
 """
 models.py
 Data shapes shared across Ember.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

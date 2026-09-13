@@ -2,8 +2,6 @@
 stream.py
 Resolves a track id (or a pasted link) into a direct HTTPS audio stream with
 yt-dlp. Nothing is ever written to disk — we only read the resolved URL.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

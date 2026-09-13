@@ -199,7 +199,7 @@ def main() -> int:
         or "."
     )
     _configure_logging(data_dir)
-    log.info("%s starting — %s (Maintained by Taezeem @taezeem14)", APP_NAME, APP_TAGLINE)
+    log.info("%s starting — %s", APP_NAME, APP_TAGLINE)
     write_icon(str(data_dir / ICON_FILENAME))
 
     guard = InstanceGuard()

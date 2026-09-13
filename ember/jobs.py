@@ -3,8 +3,6 @@ jobs.py
 Every blocking operation Ember performs, wrapped as a QRunnable so it can run
 on the thread pool. Each job owns a tiny QObject that carries its signals —
 QRunnable itself cannot declare them.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

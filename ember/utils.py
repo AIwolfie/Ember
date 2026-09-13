@@ -1,8 +1,6 @@
 """
 utils.py
 Small helpers with no dependencies on the rest of the package.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

@@ -5,8 +5,6 @@ The tray presence and the single-instance guard.
 The Ember mark is painted at runtime from the same Palette the panel uses.
 Nothing binary ships with the project, and the mark re-renders cleanly at every
 size the shell asks for instead of being resampled from one bitmap.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

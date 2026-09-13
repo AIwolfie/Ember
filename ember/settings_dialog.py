@@ -2,8 +2,6 @@
 settings_dialog.py
 Preferences panel for Ember: theme switching, audio normalization,
 endless queue toggle, desktop notifications, and hotkey configuration.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

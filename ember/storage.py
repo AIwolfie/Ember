@@ -4,8 +4,6 @@ SQLite-backed persistent storage for local favorites and playback history.
 
 Zero external dependencies (uses Python standard library sqlite3). Atomic,
 concurrently safe for desktop reads/writes, and scales effortlessly.
-
-# Written by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

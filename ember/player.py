@@ -8,8 +8,6 @@ Flow for one track:
 
 Stream resolution and queue building are executed on isolated thread pools so audio
 playback starts the moment the stream is ready without waiting on recommendations.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

@@ -4,8 +4,6 @@ FontAwesome 6 vector icon provider for Ember with dynamic Palette tinting.
 
 Provides crisp, high-DPI vector icons for playback transport, library, search,
 and window controls instead of fragile unicode glyphs.
-
-# Written by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

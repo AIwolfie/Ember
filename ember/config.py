@@ -4,8 +4,6 @@ Branding, palette, geometry and tunables for Ember.
 
 Everything visual lives here so the theme can be re-tuned in one place
 without touching layout logic.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

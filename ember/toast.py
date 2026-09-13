@@ -4,8 +4,6 @@ Subtle, non-intrusive "Now Playing" desktop toast notification.
 
 Matches Ember's palette, renders album art and track info, stays on top,
 and never steals keyboard or window focus.
-
-# Written by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations

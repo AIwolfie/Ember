@@ -4,8 +4,6 @@ Every stylesheet Ember uses, built from the Palette with string.Template.
 
 Template (not f-strings) because Qt stylesheets are full of braces and
 doubling them all would be unreadable.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
 """
 
 from __future__ import annotations
