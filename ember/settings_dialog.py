@@ -62,6 +62,42 @@ DEFAULT_HOTKEYS: Dict[str, str] = {
     "expand": "Ctrl+Alt+E",
 }
 
+# Chords FloatingPanel.hotkeys() always registers for built-in actions.
+# Keep in sync with panel.py — user-configurable chords must not shadow these,
+# otherwise two QShortcuts fire on the same chord and activation is ambiguous.
+RESERVED_EXPAND = "Ctrl+Alt+Up"
+RESERVED_COLLAPSE = "Ctrl+Alt+Down"
+RESERVED_FOCUS_SEARCH = "Ctrl+Alt+F"
+
+RESERVED_HOTKEYS: Dict[str, str] = {
+    RESERVED_EXPAND: "expand panel",
+    RESERVED_COLLAPSE: "collapse panel",
+    RESERVED_FOCUS_SEARCH: "focus search field",
+}
+
+
+def find_hotkey_conflicts(chords: Dict[str, str]) -> List[str]:
+    """Human-readable conflict descriptions for user-configured chords.
+
+    Flags collisions with Windows system chords, collisions with Ember's
+    built-in reserved chords, and duplicates within the configured set.
+    Empty chords are ignored — they fall back to defaults at save time.
+    """
+    conflicts: List[str] = []
+    seen_chords: Dict[str, str] = {}
+    for _key, raw in chords.items():
+        chord = (raw or "").strip()
+        if not chord:
+            continue
+        if chord in WINDOWS_CONFLICTS:
+            conflicts.append(f"'{chord}' (Windows system)")
+        elif chord in RESERVED_HOTKEYS:
+            conflicts.append(f"'{chord}' (built-in: {RESERVED_HOTKEYS[chord]})")
+        elif chord in seen_chords:
+            conflicts.append(f"'{chord}' (duplicate)")
+        seen_chords[chord] = _key
+    return conflicts
+
 
 class SettingsDialog(QDialog):
     """Preferences dialog with FontAwesome vector icons and hotkey conflict detection."""
@@ -301,17 +337,8 @@ class SettingsDialog(QDialog):
         self.toast_changed.emit(checked)
 
     def _validate_hotkeys(self) -> None:
-        conflicts: List[str] = []
-        seen_chords: Dict[str, str] = {}
-        for key, inp in self.hotkey_inputs.items():
-            chord = inp.text().strip()
-            if not chord:
-                continue
-            if chord in WINDOWS_CONFLICTS:
-                conflicts.append(f"'{chord}' (Windows system)")
-            elif chord in seen_chords:
-                conflicts.append(f"'{chord}' (duplicate)")
-            seen_chords[chord] = key
+        chords: Dict[str, str] = {key: inp.text() for key, inp in self.hotkey_inputs.items()}
+        conflicts = find_hotkey_conflicts(chords)
         if conflicts:
             self.conflict_warn.setText(f"Warning: {', '.join(conflicts)} conflict detected!")
             self.conflict_warn.setVisible(True)
