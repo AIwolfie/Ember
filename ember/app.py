@@ -1,14 +1,3 @@
-"""
-app.py
-Entry point. Builds the pieces, restores the last session, wires the tray and
-the hotkeys, and hands control to Qt.
-
-The panel owns layout. The core owns playback. This module owns the glue and
-nothing else.
-
-# Extended/upgraded by Taezeem (@taezeem14) — fork of Ember
-"""
-
 from __future__ import annotations
 
 import logging
