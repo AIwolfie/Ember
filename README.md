@@ -1,207 +1,262 @@
 <div align="center">
 
-# 🎵 Ember 
+<br/>
 
-**The cozy floating desktop music companion that refuses to get in your way.**
+# 🕯️ &nbsp;E m b e r
 
-*Slim as a ribbon · Warm as lamplight · Endlessly yours*
+### *The cozy floating desktop music companion that refuses to get in your way.*
+
+<p align="center">
+  <em>Slim as a ribbon &nbsp;·&nbsp; Warm as lamplight &nbsp;·&nbsp; Endlessly yours</em>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/OS-Windows%2010%20%7C%2011-2b231d?style=for-the-badge&logo=windows&logoColor=f4e9dd&labelColor=17120e" alt="Windows Support"/>
+  <img src="https://img.shields.io/badge/Python-3.10%20--%203.13-f59e0b?style=for-the-badge&logo=python&logoColor=17120e&labelColor=2b231d" alt="Python Version"/>
+  <img src="https://img.shields.io/badge/Interface-PyQt6%20Fluid-10b981?style=for-the-badge&logo=qt&logoColor=17120e&labelColor=2b231d" alt="PyQt6"/>
+  <img src="https://img.shields.io/badge/License-MIT-d97706?style=for-the-badge&labelColor=17120e" alt="MIT License"/>
+  <img src="https://img.shields.io/badge/Vibe-Pure%20Cozy-ec4899?style=for-the-badge&labelColor=2b231d" alt="Cozy Vibe"/>
+</p>
 
 <br/>
 
-<img src="ember1.png" alt="Ember ribbon" width="440">
+<table>
+  <tr>
+    <td align="center" style="border: none; padding: 14px;">
+      <p><strong>Compact Desk Ribbon</strong></p>
+      <img src="ember1.png" alt="Ember ribbon" width="460" style="border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.5);"/>
+      <br/>
+      <sub><em>Tucks neatly above your code, terminal, or browser without stealing focus</em></sub>
+    </td>
+    <td align="center" style="border: none; padding: 14px;">
+      <p><strong>Expanded Studio Panel</strong></p>
+      <img src="ember2.png" alt="Ember expanded player" width="460" style="border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.5);"/>
+      <br/>
+      <sub><em>Full queue management, live lyrics, vinyl mechanics & theme selection</em></sub>
+    </td>
+  </tr>
+</table>
 
 <br/>
-
-<img src="ember2.png" alt="Ember expanded player" width="440">
 
 </div>
 
 ---
 
-## 🆙 What's New In This Fork (The Receipts)
+<br/>
 
-No fluff, no cap — here is everything genuinely upgraded in this fork:
+## ☕ &nbsp; The Essence
 
-- 🎤 **Live Lyrics Tab & Asynchronous Lyrics Worker** (`catalog.py`, `jobs.py`, `panel.py`): Dedicated 4th library tab with background lyrics extraction via `ytmusicapi` watch playlist endpoints, complete with source attribution and text selection.
-- 🌙 **Sleep Timer with 15-Second Volume Attenuation** (`panel.py` + `player.py`): 15m, 30m, 45m, and 60m countdown presets with live badge timer and smooth exponential fade-out to zero before pausing.
-- 🔀 **Upcoming Queue Shuffle & Repeat Modes** (`player.py` + `panel.py`): Non-destructive upcoming track shuffle preserving listening history, plus cycleable repeat modes (`off` ➔ `all` ➔ `one` ➔ `off`).
-- ⚡ **Variable Playback Speed Control** (`player.py` + `panel.py`): Cycle between `1.0x`, `1.25x`, `1.5x`, and `0.75x` via native `QMediaPlayer.setPlaybackRate()`.
-- 🪟 **Desktop Glass Opacity Tuner** (`config.py` + `settings_dialog.py` + `panel.py`): Live 60%–100% window translucency slider in preferences with instant real-time feedback and persistent storage.
-- 🌊 **Fluid Spring Equalizer Bars** (`panel.py`): Upgraded from stepped integer modulo ticks to a 4-bar spring-damper physics simulation (`SpringPhysics`) with harmonic wave oscillations and anti-aliased gradient fills.
-- ⚡ **Zero-Latency Thread Pool Isolation** (`player.py` + `jobs.py`): Separated stream resolution into an isolated playback thread pool so audio decoding *never* queues behind heavy radio queries or multi-image artwork downloads. Audio plays the millisecond the stream URL is resolved.
-- 🛡️ **Network Resilience & Retry Backoff** (`catalog.py` + `stream.py`): Wrapped `ytmusicapi` and `yt-dlp` in exponential backoff retry loops (`_with_retry`), robust format fallback sorting (prioritizing Windows Media Foundation-friendly M4A/AAC), and automatic dead-track auto-skipping.
-- 💾 **SQLite Local Library & Playback History** (`storage.py`): Persistent local database (`ember.db` in AppData via Python's built-in `sqlite3` — zero external bloat). Pin favorite tracks with one click (`♡` / `♥`) and revisit your listening history anytime in dedicated tabs.
-- 🎨 **Dynamic Multi-Theme Palette Engine** (`config.py` + `theme.py`): Extended `Palette` with 5 hand-crafted presets (`Amber`, `Emerald`, `Amethyst`, `Solar`, `Rose`) without breaking the single-source-of-truth architecture. Re-skins Qt stylesheets and all custom-painted widgets live at runtime.
-- 🎛️ **Preferences & Settings Panel** (`settings_dialog.py`): Dedicated modal dialog (`⚙`) for volume normalization (softens loudness spikes across tracks), endless queue toggles, runtime theme selection, glass opacity, and desktop toast preferences.
-- ⌨️ **Configurable Hotkeys with Conflict Detection** (`settings_dialog.py` + `app.py`): Customize your playback chords directly in the UI, complete with real-time detection flagging conflicts with default Windows shortcuts (`Ctrl+C`, `Alt+F4`, `Win+L`, etc.).
-- 🔍 **Real-Time Search Debouncing** (`panel.py`): Smart 350ms input debounce on catalogue search so you can type freely without spamming network requests or stalling the UI.
-- 🍞 **Ghost "Now Playing" Desktop Toast** (`toast.py`): Subtle floating toast that slides in with album art when a track starts, completely non-intrusive and never steals window or typing focus.
-- 📜 **Rotating File Logging** (`app.py`): Standardized logging levels and upgraded to `RotatingFileHandler` (2 MB, 3 backups) so logs never balloon your disk.
-- 🧪 **Automated Test Suite & GitHub Actions CI** (`tests/` + `.github/workflows/ci.yml`): Expanded to 37 comprehensive unit, resilience, and smoke tests covering models, themes, storage, lyrics jobs, queue pruning, repeat logic, spring physics, and retry resilience.
+Most music applications demand half your screen, nag you with notifications, and swallow hundreds of megabytes of RAM. 
+
+**Ember** is built on an entirely different philosophy: **quiet presence**.
+
+- 🌙 **Floats seamlessly** over your code editor, document, or game window.
+- 🕯️ **Warm organic palette** designed specifically for late-night creative flow and tired eyes.
+- ⚡ **Zero-latency playback** that streams directly from the cloud without storing gigabytes of bloat.
+- 🎧 **Never steals keyboard focus** — control everything with gentle global hotkeys or tray presence.
+
+<br/>
 
 ---
 
-## ✨ What It Does
+<br/>
 
-| Feature | The Vibe |
+## ✨ &nbsp; The Experience
+
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Feature &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | The Vibe &amp; Craft |
 |:---|:---|
-| 🔍 **Search or paste** | Type any song name or drop a YouTube/YT Music link straight into the field — debounced and instant |
-| 🎤 **Live lyrics** | Sing along with auto-retrieved real-time lyrics directly in the 4th tab with source credits |
-| 🌙 **Sleep timer** | Drifts off with 15m–60m presets and 15-second gentle volume fade-out before pausing |
-| 🔀 **Shuffle & Repeat** | Non-destructive upcoming queue shuffle and cycleable repeat modes (off / all / one) |
-| ⚡ **Speed control** | Seamless playback rate adjustment between 0.75x, 1.0x, 1.25x, and 1.5x |
-| 🪟 **Glass opacity** | Window translucency tuner (60%–100%) to blend Ember cleanly over your desktop |
-| ♾️ **Endless queue** | The recommendation graph feeds look-alike tracks in behind your seed so the room never goes quiet |
-| 🪟 **Ribbon → panel** | Thin, discreet desk ribbon that blooms into an expanded player when you want to dig into the queue |
-| 🎛️ **Hand-painted controls** | Rotating vinyl disc, spring-damper equalizer bars, and a cozy drag-to-set circular volume dial |
-| 📌 **Always on top** | Floats cleanly over IDEs, browsers, and terminal windows without ever stealing keyboard focus |
-| 🖥️ **Tray presence** | Play, pause, skip, or summon from the Windows system tray icon |
-| ⌨️ **Hotkeys** | Global chords for every common action, fully customizable and conflict-checked |
-| 💾 **Remembers everything** | Window position, volume, opacity, theme, favorites, and playback history persisted across reboots |
+| 🔍 **Search & Paste** | Type any track title, artist name, or drop a direct YouTube / YouTube Music link straight in. Debounced at 350ms so typing stays light and instant. |
+| 🎤 **Live Lyrics Tab** | Sing along with real-time lyrics fetched quietly in the background, complete with source credits and selectable text. |
+| 🌙 **Sleep Timer** | Drift off peacefully with 15m, 30m, 45m, or 60m countdown presets featuring an automatic 15-second gentle volume fade to zero. |
+| 🔀 **Smart Shuffle & Repeat** | Non-destructive upcoming queue shuffle that keeps your history intact, plus 3-way cycleable repeat modes (`off` ➔ `all` ➔ `one`). |
+| ⚡ **Variable Speed** | Seamlessly dial playback rate between `0.75x`, `1.0x`, `1.25x`, and `1.5x` with native audio pitch preservation. |
+| 🪟 **Desktop Glass Opacity** | Dial the window translucency between 60% and 100% to let your desktop wallpaper bleed gently through. |
+| ♾️ **Endless Queue** | Autonomous recommendation graph that feeds matching tracks behind your seed song so the silence never intrudes. |
+| 🎛️ **Hand-Crafted Instruments** | Rotating vinyl disc with dynamic specular sheen, fluid spring-damper equalizer bars, and a cozy drag-to-set circular volume dial. |
+| 💾 **SQLite Local Memory** | Pinned favorites (`♡` / `♥`) and listening history saved securely in a lightweight local database (`ember.db`). Zero external dependencies. |
+| 🎨 **Dynamic Palette Switcher** | Swap instantly between five hand-curated themes (`Amber`, `Emerald`, `Amethyst`, `Solar`, `Rose`) with live runtime UI restyling. |
+| 🍞 **Ghost Toast** | A quiet, non-focus-stealing floating toast notification with album art that slides in only when tracks change. |
+| ⌨️ **Universal Hotkeys** | Global key chords for every common action, fully customizable with conflict detection for Windows shortcuts. |
+
+<br/>
 
 ---
 
-## 🚀 Get This Running (it's not that deep)
+<br/>
 
-> [!NOTE]  
-> **Platform Support**: Ember is built specifically for **Windows** (Python 3.10 to 3.13). It relies on Windows Media Foundation (WMF) audio pipelines, Win32 topmost API calls (`user32.SetWindowPos`), and the Windows system tray. We don't ship fake shell scripts for platforms it wasn't engineered for.
+## 🎨 &nbsp; Handcrafted Theme Palettes
 
-### The Fast Way (Automated)
+Ember ships with 5 unified color stories inspired by natural stones and ambient warmth:
+
+```
+  🕯️ Amber     │ Deep espresso base, roasted coffee, and luminous golden amber light
+  🌿 Emerald   │ Forest moss, midnight pine, and radiant emerald glow
+  🔮 Amethyst  │ Velvet twilight, dark slate, and deep mystical violet luminescence
+  ☀️ Solar     │ Sun-baked terracotta, warm earth, and bright solar radiance
+  🌸 Rose      │ Smoky plum, evening rouge, and delicate soft blush accents
+```
+
+> *Every widget, vinyl reflection, text label, and progress slider re-skins instantly at runtime without restarting the application.*
+
+<br/>
+
+---
+
+<br/>
+
+## 🚀 &nbsp; Quickstart
+
+Ember is engineered specifically for **Windows 10 & 11** using Windows Media Foundation (WMF) pipelines and native Win32 window positioning.
+
+### 🌟 The One-Click Way (Recommended)
 
 ```bat
 install.bat
 ```
-Creates an isolated `.venv` in the directory and installs pinned dependencies into it. Your system Python stays completely untouched.
+*Creates an isolated `.venv` and installs all dependencies automatically. Your system Python stays untouched.*
 
 ```bat
 launch.bat
 ```
-Launches Ember smoothly in the background without keeping a pesky command prompt window open.
+*Launches Ember quietly in the background without keeping a console window open.*
 
-*(Want to see console logs in real time? Run `launch_debug.bat` instead.)*
+*(Prefer live console logs while tinkering? Run `launch_debug.bat` instead.)*
 
-### The Manual Way
+<br/>
+
+### 🛠️ The Manual Way
 
 ```bat
+# 1. Clone the repository
+git clone https://github.com/AIwolfie/Ember.git
+cd Ember
+
+# 2. Set up virtual environment
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# 3. Launch the player
 .venv\Scripts\pythonw.exe -m ember
 ```
 
----
-
-## ⌨️ Default Hotkeys
-
-| Keys | Action |
-|:---|:---|
-| `Ctrl` + `Alt` + `Space` | Play / pause |
-| `Ctrl` + `Alt` + `→` | Next track |
-| `Ctrl` + `Alt` + `←` | Previous track (or restart song) |
-| `Ctrl` + `Alt` + `E` | Toggle expanded panel |
-| `Ctrl` + `Alt` + `↑` | Expand panel |
-| `Ctrl` + `Alt` + `↓` | Collapse panel |
-| `Ctrl` + `Alt` + `F` | Focus search field |
-
-*(All chords can be customized from the `⚙` Preferences dialog inside the player).*
+<br/>
 
 ---
 
-## 🗂️ Project Structure
+<br/>
+
+## ⌨️ &nbsp; Default Hotkeys Cheatsheet
+
+Control your soundtrack from inside any application, IDE, or full-screen game:
+
+<div align="center">
+
+| Shortcut | Action | Scope |
+|:---|:---|:---:|
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Space</kbd> | Play &nbsp;/&nbsp; Pause | Global |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>→</kbd> | Next Track | Global |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>←</kbd> | Previous Track (or restart current) | Global |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>E</kbd> | Toggle Expanded Panel | Global |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>↑</kbd> | Expand Ribbon to Panel | In-App |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>↓</kbd> | Collapse Panel to Ribbon | In-App |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F</kbd> | Jump to &amp; Focus Search Field | In-App |
+
+</div>
+
+> 💡 *Tip: All key combinations can be freely re-mapped in the `⚙` Preferences dialog.*
+
+<br/>
+
+---
+
+<br/>
+
+## 🏛️ &nbsp; Architecture & Engineering
 
 ```
 Ember/
-├── .github/workflows/
-│   └── ci.yml          → multi-OS GitHub Actions test & lint pipeline
 ├── ember/
-│   ├── __init__.py     → package metadata & version
-│   ├── __main__.py     → python -m ember launcher
-│   ├── app.py          → lifecycle, rotating logs, session restore, hotkeys
-│   ├── catalog.py      → YouTube Music guest API with retry backoff
-│   ├── config.py       → design tokens, theme presets, geometry & tunables
-│   ├── jobs.py         → QRunnable tasks with isolated thread pools
-│   ├── models.py       → Song dataclass & serialization
-│   ├── panel.py        → the floating surface, tabs, search debounce, UI
-│   ├── player.py       → audio core, queue engine, volume normalization
-│   ├── settings_dialog.py → preferences modal, hotkeys, theme switcher
-│   ├── storage.py      → SQLite favorites & playback history manager
-│   ├── stream.py       → yt-dlp audio stream resolver with format fallback
-│   ├── theme.py        → template stylesheets built dynamically from Palette
-│   ├── toast.py        → non-focus-stealing desktop notification toast
-│   ├── tray.py         → system tray presence & single-instance guard
-│   └── utils.py        → clock, string elision, and helpers
-├── tests/              → automated pytest suite (models, palette, storage, resilience)
-├── install.bat         → one-click Windows venv & dependency installer
-├── launch.bat          → silent desktop launcher
-├── launch_debug.bat    → console-attached diagnostic launcher
-├── requirements.txt    → pinned dependencies
-├── CREDITS.md          → full project attribution
-├── LICENSE             → MIT License (original copyright holder preserved)
-└── README.md           → you are here 🔥
+│   ├── app.py             → Application lifecycle, rotating logs, hotkey hooks
+│   ├── catalog.py         → YouTube Music guest API with exponential backoff
+│   ├── config.py          → Palette tokens, geometry constants, design tunables
+│   ├── icons.py           → FontAwesome 6 vector icons with dynamic tinting
+│   ├── jobs.py            → Asynchronous QRunnable workers with isolated thread pools
+│   ├── models.py          → Song dataclass & serialization contracts
+│   ├── panel.py           → Floating surface, ribbon, tabs, search debounce & canvas
+│   ├── player.py          → PlaybackCore, queue manager & auto-recovery engine
+│   ├── settings_dialog.py → Preferences modal, hotkey binder & theme manager
+│   ├── storage.py         → Persistent SQLite engine for favorites & playback history
+│   ├── stream.py          → Direct audio stream extraction with yt-dlp
+│   ├── theme.py           → Dynamic Qt stylesheets compiled with string.Template
+│   ├── toast.py           → Non-intrusive floating desktop notification toast
+│   ├── tray.py            → System tray icon & single-instance lock guard
+│   └── utils.py           → Formatters, clock helpers, and text elision
+├── tests/                 → Automated pytest suite (models, palette, storage, resilience)
+├── install.bat            → Automated Windows environment installer
+├── launch.bat             → Clean silent application launcher
+├── launch_debug.bat       → Diagnostic console launcher
+├── requirements.txt       → Pinned dependency specifications
+├── CREDITS.md             → Full project attribution
+└── LICENSE                → MIT License
 ```
 
----
+<br/>
 
-## 🎨 Design System
+### ⚡ Thread Isolation Model
 
-One palette. One source of truth.
-
-> Espresso base, amber light, cream typography — built for a dark room, glowing monitors, and a long evening.
-
-Every visual token lives in `Palette` in `ember/config.py`. `theme.py` compiles those tokens into Qt stylesheets using `string.Template`, and every custom-painted widget (`VinylDisc`, `EqualiserBars`, `VolumeDial`, `SeekBar`, `Hairline`, `QueueRow`) reads from that exact same class.
-
-Switch to `Emerald`, `Amethyst`, `Solar`, or `Rose` from the settings menu and the entire player repaints in real time.
-
----
-
-## ⚙️ How It Works (The Threading Architecture)
-
-Stream resolution and recommendation generation run completely asynchronously on **isolated thread pools**:
-
-1. **Playback Pool**: Dedicated exclusively to `LoadJob`. When you pick a track, the audio stream resolves and begins playing immediately.
-2. **Background Pool**: Handles `RadioJob` (graph look-alikes), `ArtJob` (cover thumbnails), and `SearchJob`. Heavy background tasks never stall or delay audio playback.
+Audio decoding never waits on network queries. Tasks are decoupled across **dedicated thread pools**:
 
 ```mermaid
-flowchart TD
-    A["Search Query or Link"] --> B["Queue Engine"]
-    B -->|"Immediate (Dedicated Playback Pool)"| C["LoadJob: Resolve Audio Stream"]
-    B -->|"Parallel (Background Pool)"| D["RadioJob: Expand Recommendation Graph"]
-    C --> E["QMediaPlayer: Instant Playback"]
-    D -->|"Append Fresh Tracks"| B
-    C -->|"Track Change Event"| F["NowPlayingToast Notification"]
-    C -->|"Log Playback"| G["SQLite History (ember.db)"]
+flowchart LR
+    A["User Input / Search"] --> B["Queue Controller"]
+    B -->|"Dedicated Playback Pool"| C["LoadJob: Audio Stream"]
+    B -->|"Background Pool"| D["RadioJob: Recommendation Graph"]
+    B -->|"Background Pool"| E["ArtJob: High-DPI Thumbnails"]
+    B -->|"Background Pool"| F["LyricsJob: Song Lyrics"]
+    C --> G["QMediaPlayer: Native WMF Audio"]
+    D -->|"Continuous Refill"| B
 ```
+
+<br/>
 
 ---
 
-## 🧪 Testing
+<br/>
 
-Run the automated test suite locally:
+## 🧪 &nbsp; Verification & Testing
+
+Ember features a comprehensive automated test suite covering models, themes, database integrity, and resilience:
 
 ```bat
 .venv\Scripts\python.exe -m pytest tests/ -v
 ```
 
----
-
-## 🫡 Credits
-
-### Creator & Maintainer
-
-**Mayank Malaviya aka ([@AIwolfie](https://github.com/AIwolfie))**  
-Original creator, architect, and maintainer of Ember.
-
-### Contributors
-
-**Muhammad Taezeem Tariq Matta** ([@taezeem14](https://github.com/taezeem14))  
-Contributor — development improvements and project upgrades.
-
-### License
-
-Ember is distributed under the **MIT License**.  
-See [LICENSE](LICENSE) for the complete license and copyright notice.
+<br/>
 
 ---
+
+<br/>
+
+## 🤝 &nbsp; Attribution & Credits
+
+Ember is built with care, craft, and love for music:
+
+- **Mayank Malaviya** ([@AIwolfie](https://github.com/AIwolfie)) — *Original creator, lead architect, and maintainer of Ember.*
+- **Muhammad Taezeem Tariq Matta** ([@taezeem14](https://github.com/taezeem14)) — *Contributor — development improvements and project upgrades.*
+
+For full details, see [CREDITS.md](CREDITS.md).
+
+<br/>
+
+---
+
+<br/>
 
 <div align="center">
-<sub><strong>Ember</strong> — cozy listening, engineered to never drop a beat. 🔥</sub>
+
+### Distributed under the [MIT License](LICENSE)
+
+<sub><em>Crafted for late nights, cold tea, and warm code. Enjoy the sound. 🎵</em></sub>
+
 </div>
