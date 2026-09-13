@@ -85,7 +85,13 @@ from .icons import (
 from .jobs import ArtJob, LyricsJob, SearchJob
 from .models import Song
 from .player import PlaybackCore
-from .settings_dialog import DEFAULT_HOTKEYS, SettingsDialog
+from .settings_dialog import (
+    DEFAULT_HOTKEYS,
+    RESERVED_COLLAPSE,
+    RESERVED_EXPAND,
+    RESERVED_FOCUS_SEARCH,
+    SettingsDialog,
+)
 from .storage import EmberStorage
 from .theme import panel_stylesheet
 from .toast import NowPlayingToast
@@ -1743,14 +1749,16 @@ class FloatingPanel(QWidget):
         cfg_back = str(self.settings.value(f"{SETTINGS_HOTKEYS}/back", DEFAULT_HOTKEYS["back"]))
         cfg_expand = str(self.settings.value(f"{SETTINGS_HOTKEYS}/expand", DEFAULT_HOTKEYS["expand"]))
 
+        # The reserved chords below are mirrored in settings_dialog.RESERVED_HOTKEYS
+        # so the preferences dialog can warn before a user chord shadows them.
         return [
             (cfg_toggle, self.core.toggle),
             (cfg_forward, self.core.forward),
             (cfg_back, self.core.back),
             (cfg_expand, self.toggle_expand),
-            ("Ctrl+Alt+Up", self.expand),
-            ("Ctrl+Alt+Down", self.collapse),
-            ("Ctrl+Alt+F", self._focus_field),
+            (RESERVED_EXPAND, self.expand),
+            (RESERVED_COLLAPSE, self.collapse),
+            (RESERVED_FOCUS_SEARCH, self._focus_field),
         ]
 
     def _focus_field(self) -> None:
