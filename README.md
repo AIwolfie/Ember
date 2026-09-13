@@ -37,7 +37,7 @@ No fluff, no cap — here is everything genuinely upgraded in this fork:
 - 🔍 **Real-Time Search Debouncing** (`panel.py`): Smart 350ms input debounce on catalogue search so you can type freely without spamming network requests or stalling the UI.
 - 🍞 **Ghost "Now Playing" Desktop Toast** (`toast.py`): Subtle floating toast that slides in with album art when a track starts, completely non-intrusive and never steals window or typing focus.
 - 📜 **Rotating File Logging** (`app.py`): Standardized logging levels and upgraded to `RotatingFileHandler` (2 MB, 3 backups) so logs never balloon your disk.
-- 🧪 **Automated Test Suite & GitHub Actions CI** (`tests/` + `.github/workflows/ci.yml`): Expanded to 37 comprehensive unit, resilience, and smoke tests covering models, themes, storage, lyrics jobs, queue pruning, repeat logic, spring physics, and retry resilience.
+- 🧪 **Automated Test Suite & GitHub Actions CI** (`tests/` + `.github/workflows/ci.yml`): Expanded to a 40+ strong suite of unit, resilience, and smoke tests covering models, themes, storage, lyrics jobs, queue pruning, repeat logic, spring physics, and retry resilience.
 
 ---
 
@@ -111,7 +111,7 @@ python -m venv .venv
 ```
 Ember/
 ├── .github/workflows/
-│   └── ci.yml          → multi-OS GitHub Actions test & lint pipeline
+│   └── ci.yml          → Windows GitHub Actions test & lint pipeline
 ├── ember/
 │   ├── __init__.py     → package metadata & version
 │   ├── __main__.py     → python -m ember launcher
@@ -129,7 +129,7 @@ Ember/
 │   ├── toast.py        → non-focus-stealing desktop notification toast
 │   ├── tray.py         → system tray presence & single-instance guard
 │   └── utils.py        → clock, string elision, and helpers
-├── tests/              → automated pytest suite (models, palette, storage, resilience)
+├── tests/              → automated pytest suite (models, features, hotkeys, palette, storage, resilience)
 ├── install.bat         → one-click Windows venv & dependency installer
 ├── launch.bat          → silent desktop launcher
 ├── launch_debug.bat    → console-attached diagnostic launcher
