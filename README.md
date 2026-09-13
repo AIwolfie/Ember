@@ -55,7 +55,7 @@ No fluff, no cap — here is everything genuinely upgraded in this fork:
 | 🪟 **Ribbon → panel** | Thin, discreet desk ribbon that blooms into an expanded player when you want to dig into the queue |
 | 🎛️ **Hand-painted controls** | Rotating vinyl disc, spring-damper equalizer bars, and a cozy drag-to-set circular volume dial |
 | 📌 **Always on top** | Floats cleanly over IDEs, browsers, and terminal windows without ever stealing keyboard focus |
-| 🖥️ **Tray presence** | Play, pause, skip, or summon from the Windows system tray icon |
+| 🖥️ **Tray presence** | Play, pause, skip, or summon from the system tray — Windows and Linux desktops |
 | ⌨️ **Hotkeys** | Global chords for every common action, fully customizable and conflict-checked |
 | 💾 **Remembers everything** | Window position, volume, opacity, theme, favorites, and playback history persisted across reboots |
 
@@ -64,7 +64,7 @@ No fluff, no cap — here is everything genuinely upgraded in this fork:
 ## 🚀 Get This Running (it's not that deep)
 
 > [!NOTE]  
-> **Platform Support**: Ember is built specifically for **Windows** (Python 3.10 to 3.13). It relies on Windows Media Foundation (WMF) audio pipelines, Win32 topmost API calls (`user32.SetWindowPos`), and the Windows system tray. We don't ship fake shell scripts for platforms it wasn't engineered for.
+> **Platform Support**: Ember is built for **Windows** (Python 3.10 to 3.13) and runs natively on **Linux** — with **Arch Linux** fully documented below. The only Windows-exclusive call (`user32.SetWindowPos` topmost hardening) is platform-guarded via `sys.platform`, so on Arch the Qt `WindowStaysOnTopHint` quietly takes over. No fake shell scripts — just real, tested commands.
 
 ### The Fast Way (Automated)
 
@@ -87,6 +87,38 @@ python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 .venv\Scripts\pythonw.exe -m ember
 ```
+
+### Arch Linux (and friends)
+
+Ember runs natively on Arch. Everything it touches — `PyQt6`, `qtawesome`, `ytmusicapi`, `yt-dlp` — is a cross-platform Python package, and the PyPI `PyQt6` wheel ships the FFmpeg multimedia backend for Linux, so audio plays out of the box.
+
+**1. Install the system packages:**
+
+```bash
+sudo pacman -S --needed python python-pip ffmpeg git
+```
+
+> [!TIP]
+> `ffmpeg` is what `yt-dlp` reaches for when a stream needs remuxing — not required for every track, but strongly recommended.
+
+**2. Clone, build a venv, launch:**
+
+```bash
+git clone https://github.com/AIwolfie/Ember.git
+cd Ember
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m ember
+```
+
+**3. Run the test suite (the Arch way):**
+
+```bash
+.venv/bin/python -m pytest tests/ -v
+```
+
+> [!NOTE]
+> **Tray icon on Linux**: works out of the box on KDE Plasma, Hyprland/sway (with a tray-capable bar like Waybar), and any panel implementing `StatusNotifierItem`. On GNOME you'll need an AppIndicator extension for the tray to appear — the floating ribbon itself is unaffected.
 
 ---
 
@@ -179,6 +211,12 @@ Run the automated test suite locally:
 
 ```bat
 .venv\Scripts\python.exe -m pytest tests/ -v
+```
+
+On Arch Linux:
+
+```bash
+.venv/bin/python -m pytest tests/ -v
 ```
 
 ---
