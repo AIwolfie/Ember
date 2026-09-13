@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import ember.config as config_module
 from ember.audio_devices import DEFAULT_AUDIO_DEVICE_ID
 from ember.config import (
     CLOSE_ACTION_EXIT,
     CLOSE_ACTION_TRAY,
     DEFAULT_CLOSE_ACTION,
     DEFAULT_OPACITY,
-    SETTINGS_AUDIO_DEVICE,
     SETTINGS_CLOSE_ACTION,
     SETTINGS_OPACITY,
     SETTINGS_REPEAT,
@@ -45,7 +45,7 @@ def test_spring_physics_custom_damping_and_stiffness() -> None:
 def test_feature_settings_keys() -> None:
     assert 60 <= DEFAULT_OPACITY <= 100
     assert DEFAULT_AUDIO_DEVICE_ID == "default"
-    assert SETTINGS_AUDIO_DEVICE == "audio/device"
+    assert not hasattr(config_module, "SETTINGS_AUDIO_DEVICE")
     assert SETTINGS_CLOSE_ACTION == "ui/close_action"
     assert DEFAULT_CLOSE_ACTION == CLOSE_ACTION_EXIT
     assert {CLOSE_ACTION_EXIT, CLOSE_ACTION_TRAY} == {

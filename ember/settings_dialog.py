@@ -27,14 +27,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from .audio_devices import DEFAULT_AUDIO_DEVICE_ID, audio_outputs, device_key
 from .config import (
     CLOSE_ACTION_EXIT,
     CLOSE_ACTION_TRAY,
     DEFAULT_CLOSE_ACTION,
     DEFAULT_OPACITY,
     Palette,
-    SETTINGS_AUDIO_DEVICE,
     SETTINGS_AUTO_QUEUE,
     SETTINGS_HOTKEYS,
     SETTINGS_CLOSE_ACTION,
@@ -78,7 +76,6 @@ class SettingsDialog(QDialog):
     endless_changed = pyqtSignal(bool)
     toast_changed = pyqtSignal(bool)
     hotkeys_changed = pyqtSignal(dict)
-    audio_device_changed = pyqtSignal(str)
 
     def __init__(self, settings: QSettings, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -184,15 +181,6 @@ class SettingsDialog(QDialog):
         audio_hdr.addWidget(audio_sec)
         audio_hdr.addStretch(1)
         layout.addLayout(audio_hdr)
-
-        device_row = QHBoxLayout()
-        device_label = QLabel("Sound Device:", self)
-        self.device_combo = QComboBox(self)
-        self._populate_audio_devices()
-        self.device_combo.currentIndexChanged.connect(self._on_audio_device_selected)
-        device_row.addWidget(device_label)
-        device_row.addWidget(self.device_combo, 1)
-        layout.addLayout(device_row)
 
         self.chk_normalize = QCheckBox("Volume Normalization (soften loudness spikes)", self)
         self.chk_normalize.toggled.connect(self._on_normalize_toggled)
@@ -304,32 +292,10 @@ class SettingsDialog(QDialog):
             idx = self.close_combo.findData(DEFAULT_CLOSE_ACTION)
         self.close_combo.setCurrentIndex(max(0, idx))
 
-        saved_device = str(self.settings.value(SETTINGS_AUDIO_DEVICE, DEFAULT_AUDIO_DEVICE_ID))
-        idx = self.device_combo.findData(saved_device)
-        if idx < 0:
-            idx = self.device_combo.findData(DEFAULT_AUDIO_DEVICE_ID)
-        self.device_combo.setCurrentIndex(max(0, idx))
-
         for key, default_val in DEFAULT_HOTKEYS.items():
             val = str(self.settings.value(f"{SETTINGS_HOTKEYS}/{key}", default_val))
             if key in self.hotkey_inputs:
                 self.hotkey_inputs[key].setText(val)
-
-    def _populate_audio_devices(self) -> None:
-        self.device_combo.addItem("System Default", DEFAULT_AUDIO_DEVICE_ID)
-        seen = {DEFAULT_AUDIO_DEVICE_ID}
-        try:
-            outputs = audio_outputs()
-        except Exception as exc:  # noqa: BLE001 - Qt multimedia varies by platform
-            log.debug("audio devices unavailable: %s", exc)
-            return
-        for device in outputs:
-            key = device_key(device)
-            if key in seen:
-                continue
-            seen.add(key)
-            label = device.description() or "Unnamed Device"
-            self.device_combo.addItem(label, key)
 
     def _on_opacity_changed(self, value: int) -> None:
         self.opacity_val_lbl.setText(f"{value}%")
@@ -353,11 +319,6 @@ class SettingsDialog(QDialog):
     def _on_toast_toggled(self, checked: bool) -> None:
         self.settings.setValue(SETTINGS_TOAST_ENABLED, checked)
         self.toast_changed.emit(checked)
-
-    def _on_audio_device_selected(self, index: int) -> None:
-        device_id = str(self.device_combo.itemData(index) or DEFAULT_AUDIO_DEVICE_ID)
-        self.settings.setValue(SETTINGS_AUDIO_DEVICE, device_id)
-        self.audio_device_changed.emit(device_id)
 
     def _on_close_action_selected(self, index: int) -> None:
         action = str(self.close_combo.itemData(index) or DEFAULT_CLOSE_ACTION)

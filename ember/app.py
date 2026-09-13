@@ -29,7 +29,6 @@ from .config import (
     ORG_NAME,
     Palette,
     SETTINGS_AUTO_QUEUE,
-    SETTINGS_AUDIO_DEVICE,
     SETTINGS_EXPANDED,
     SETTINGS_NORMALIZE_VOLUME,
     SETTINGS_POS_X,
@@ -144,9 +143,6 @@ def _restore_session(panel: FloatingPanel, core: PlaybackCore, settings: QSettin
     core.set_volume(volume)
     panel.volume.set_value(volume)
 
-    audio_device = str(settings.value(SETTINGS_AUDIO_DEVICE, "default"))
-    core.set_audio_device(audio_device)
-
     norm = _as_bool(settings.value(SETTINGS_NORMALIZE_VOLUME), False)
     core.set_normalize_volume(norm)
 
@@ -167,7 +163,6 @@ def _persist(panel: FloatingPanel, core: PlaybackCore, settings: QSettings) -> N
     settings.setValue(SETTINGS_POS_Y, y)
     settings.setValue(SETTINGS_EXPANDED, panel.expanded)
     settings.setValue(SETTINGS_VOLUME, core.volume())
-    settings.setValue(SETTINGS_AUDIO_DEVICE, core.audio_device())
     settings.setValue(SETTINGS_AUTO_QUEUE, core.auto_queue)
     settings.setValue(SETTINGS_NORMALIZE_VOLUME, core.normalize_volume)
     settings.setValue(SETTINGS_THEME, Palette.current_theme)
