@@ -79,7 +79,9 @@ class RadioJob(QRunnable):
 # ----------------------------------------------------------------------- load
 class LoadSignals(_Signals):
     ready = pyqtSignal(object, str)
-    failed = pyqtSignal(object, str)
+    # song, message, permanent — "permanent" is what lets the player skip an
+    # age-gated track and remember it, instead of re-resolving it forever.
+    failed = pyqtSignal(object, str, bool)
 
 
 class LoadJob(QRunnable):
@@ -94,13 +96,16 @@ class LoadJob(QRunnable):
 
     def run(self) -> None:
         try:
-            url = self.resolver.stream_url(self.song.video_id)
-            if not url:
-                raise RuntimeError("no playable audio stream was returned")
-            self.signals.ready.emit(self.song, url)
-        except Exception as exc:  # noqa: BLE001 - network surface
+            url, message, permanent = self.resolver.resolve(self.song.video_id)
+        except Exception as exc:  # noqa: BLE001 - resolver contract breach
             log.warning("stream resolve failed for %s: %s", self.song.video_id, exc)
-            self.signals.failed.emit(self.song, str(exc))
+            self.signals.failed.emit(self.song, str(exc), False)
+            return
+        if url:
+            self.signals.ready.emit(self.song, url)
+            return
+        log.warning("stream resolve failed for %s: %s", self.song.video_id, message)
+        self.signals.failed.emit(self.song, message, permanent)
 
 
 # ------------------------------------------------------------------ pasted url

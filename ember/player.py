@@ -13,21 +13,42 @@ playback starts the moment the stream is ready without waiting on recommendation
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, List, Optional
+import re
+from typing import Any, Callable, Iterable, List, Optional, Set
 
 from PyQt6.QtCore import QObject, QThreadPool, QTimer, QUrl, pyqtSignal
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 
 from .catalog import CatalogSource
-from .config import DEFAULT_VOLUME, RADIO_DEPTH, SEEK_MS_BACKSTEP
+from .config import (
+    DEFAULT_VOLUME,
+    RADIO_DEPTH,
+    SEEK_MS_BACKSTEP,
+    SWITCH_TIMEOUT_MS,
+)
 from .jobs import LinkJob, LoadJob, RadioJob
 from .models import Song
 from .stream import StreamResolver
 
 log = logging.getLogger(__name__)
 
+# Every playback lifecycle event goes to this one logger. Filtering
+# `ember.playback` is now enough to see a whole session's transitions in order.
+playback_log = logging.getLogger("ember.playback")
+
 MAX_AUTO_SKIP = 3  # consecutive dead tracks before we stop advancing
 MAX_QUEUE_SIZE = 200  # prevent infinite queue growth from auto-radio
+
+# A resolved stream URL is a working credential for its lifetime, so it must
+# never reach a log record. The backend hands one back inside its own error
+# strings — the failing URL *is* the message on a ResourceError — so redaction
+# happens here rather than trusting every call site to strip it.
+_SIGNED_URL_RE = re.compile(r"https?://[^\s\"']*googlevideo\.com[^\s\"']*")
+
+
+def _redact(text: str) -> str:
+    """Replace any signed stream URL embedded in `text` with a placeholder."""
+    return _SIGNED_URL_RE.sub("<stream-url>", text)
 
 
 class PlaybackCore(QObject):
@@ -79,6 +100,12 @@ class PlaybackCore(QObject):
         self._pre_fade_volume: Optional[int] = None
 
         self._wanted: Optional[str] = None
+        # Identity of the source currently handed to the media player, and of the
+        # one whose EndOfMedia we already acted on. Qt reports status for the
+        # outgoing source mid-swap, so identity — not a timing flag — is what
+        # separates a real track end from a stale one.
+        self._loaded_id: Optional[str] = None
+        self._ended_id: Optional[str] = None
         self._switching = False
         self._extending = False
         self._advance_after_extend = False
@@ -86,11 +113,148 @@ class PlaybackCore(QObject):
         self._failed_id: Optional[str] = None
         self._error_streak = 0
 
+        # Monotonic counter bumped once per play(). Every lifecycle log line
+        # carries it, so a status arriving for generation 7 after generation 9
+        # started is visible by eye instead of inferred from timestamps.
+        self._generation = 0
+        # Tracks the extractor will never serve (age gate, members-only, deleted).
+        # Retrying these burns the skip budget on the same track forever.
+        self._dead_tracks: Set[str] = set()
+        # Tracks already given their one fresh re-resolve after a 403/410 on a
+        # signed URL. Without a bound, "refresh the stream" is an infinite loop.
+        self._retried_tracks: Set[str] = set()
+        # Next-track prefetch, keyed on video_id so a stale result is dropped.
+        self._prefetched: Optional[tuple] = None
+        # A setSource that never opens would otherwise leave _switching True and
+        # the UI spinning with no timeout and no user-visible way out.
+        self._switch_watchdog: Optional[QTimer] = None
+
         self.player.positionChanged.connect(self._relay_progress)
         self.player.durationChanged.connect(self._relay_length)
         self.player.playbackStateChanged.connect(self._relay_state)
         self.player.mediaStatusChanged.connect(self._relay_media_status)
         self.player.errorOccurred.connect(self._relay_error)
+
+    # --------------------------------------------------------------- lifecycle
+    def _lifecycle(self, event: str, track_id: Optional[str] = None, **extra: Any) -> None:
+        """One line per lifecycle event, always tagged with the generation.
+
+        These used to be bare log calls at four levels under four loggers, which
+        is why the original "tracks change on their own" report took an hour of
+        log archaeology to diagnose.
+        """
+        parts = [f"gen={self._generation}", f"event={event}"]
+        if track_id:
+            parts.append(f"track={track_id}")
+        parts.append(f"wanted={self._wanted}")
+        parts.append(f"loaded={self._loaded_id}")
+        parts.append(f"switching={self._switching}")
+        for key, value in extra.items():
+            parts.append(f"{key}={value}")
+        playback_log.info(" ".join(parts))
+
+    def _reset_source_state(self) -> None:
+        """The one place the source-identity fields are cleared.
+
+        play(), _on_stream_failed() and _relay_error() each used to hand-clear
+        overlapping subsets of these, which is exactly how they drift apart and
+        produce the next bug of this class.
+
+        _prefetched is deliberately NOT touched here: it describes a *future*
+        track, and clearing it would throw away the resolution that makes the
+        next transition instant — the one case prefetching exists for.
+        """
+        self._loaded_id = None
+        self._ended_id = None
+        self._failed_id = None
+        self._switching = False
+
+    def _arm_switch_watchdog(self) -> None:
+        """Fail a setSource that never opens, instead of spinning forever."""
+        if self._switch_watchdog is not None:
+            self._switch_watchdog.stop()
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.setInterval(SWITCH_TIMEOUT_MS)
+        timer.timeout.connect(self._on_switch_timeout)
+        self._switch_watchdog = timer
+        timer.start()
+
+    def _disarm_switch_watchdog(self) -> None:
+        if self._switch_watchdog is not None:
+            self._switch_watchdog.stop()
+            self._switch_watchdog.deleteLater()
+            self._switch_watchdog = None
+
+    def _settle_switch(self) -> None:
+        """The new source is live: stop distrusting status, disarm the watchdog."""
+        self._switching = False
+        self._disarm_switch_watchdog()
+
+    def _on_switch_timeout(self) -> None:
+        """The backend never opened the source we handed it. Move on."""
+        self._switch_watchdog = None
+        if not self._switching:
+            return
+        self._lifecycle("switch_timeout")
+        self._switching = False
+        self._loaded_id = None
+        self.loading_changed.emit(False)
+        self.notice.emit("that track wouldn't open")
+        self._error_streak += 1
+        if self._error_streak <= MAX_AUTO_SKIP and self.cursor + 1 < len(self.queue):
+            self.forward(force=True)
+        else:
+            self._error_streak = 0
+
+    # ---------------------------------------------------------------- prefetch
+    def _prefetch_next(self) -> None:
+        """Resolve the following track while this one plays.
+
+        Resolution latency is why track transitions feel broken; every streaming
+        player hides it behind the currently-playing track.
+        """
+        if not self.auto_queue:
+            return
+        if self.cursor + 1 >= len(self.queue):
+            return
+        nxt = self.queue[self.cursor + 1]
+        if nxt.video_id in self._dead_tracks:
+            return
+        if self._prefetched is not None:
+            if self._prefetched[0] == nxt.video_id:
+                return  # already resolved, or already in flight
+            # A result for a track we have since skipped past would otherwise
+            # occupy the slot forever and starve every later prefetch.
+            self._prefetched = None
+        self._prefetched = (nxt.video_id, None)
+        job = LoadJob(nxt, self.resolver)
+        job.signals.ready.connect(self._on_prefetch_ready)
+        job.signals.failed.connect(self._on_prefetch_failed)
+        self.playback_pool.start(job)
+
+    def _on_prefetch_ready(self, song: Song, url: str) -> None:
+        if self._prefetched is None or self._prefetched[0] != song.video_id:
+            return
+        self._prefetched = (song.video_id, url)
+        self._lifecycle("prefetch_ready", song.video_id)
+
+    def _on_prefetch_failed(self, song: Song, message: str, permanent: bool) -> None:
+        if self._prefetched is not None and self._prefetched[0] == song.video_id:
+            self._prefetched = None
+        if permanent:
+            self._dead_tracks.add(song.video_id)
+        log.debug("prefetch failed for %s: %s", song.video_id, _redact(message))
+
+    def _take_prefetch(self, song: Song) -> Optional[str]:
+        """Consume the prefetched URL for this track, if one is ready."""
+        if self._prefetched is None or self._prefetched[0] != song.video_id:
+            return None
+        url = self._prefetched[1]
+        if url is None:
+            return None  # still resolving; it lands via _on_prefetch_ready
+        self._prefetched = None
+        return url
 
     # ------------------------------------------------------------------ state
     @property
@@ -136,9 +300,18 @@ class PlaybackCore(QObject):
             self.cursor = slot
             self.cursor_changed.emit(slot)
 
+        self._generation += 1
         self._wanted = song.video_id
-        self._failed_id = None  # allow manual retries of failed tracks
+        # An explicit play is the user asking to try this track again, so the
+        # remembered failure and the one-shot retry both reset here.
+        self._dead_tracks.discard(song.video_id)
+        self._retried_tracks.discard(song.video_id)
+        # Whatever the player still holds belongs to the previous track. Drop it
+        # through the one shared reset, then re-arm the swap guard — this used to
+        # leave _loaded_id pointing at the old track and _switching wedged True.
+        self._reset_source_state()
         self._switching = True
+        self._lifecycle("play", song.video_id, index=self.cursor)
         self.loading_changed.emit(True)
         self.song_changed.emit(song)
 
@@ -146,6 +319,7 @@ class PlaybackCore(QObject):
         # dropped by the _wanted check in the slots — never clear() the pool here:
         # it deletes the in-flight job's signal carrier mid-emit, which wedges
         # _switching True and freezes the player for good.
+        self._arm_switch_watchdog()
         self._start_load(song)
         if expand:
             # Parallel background recommendation fetch
@@ -194,18 +368,34 @@ class PlaybackCore(QObject):
             elif self.queue:
                 self.play_at(0)
 
+    def _first_playable(self, indices: Iterable[int]) -> Optional[int]:
+        """First index in `indices` whose track is not a known-dead one.
+
+        Without this, auto-advance steps straight onto a track that already
+        failed permanently and burns the whole skip budget re-resolving it —
+        the loop that made one age-gated video look like a runaway player.
+        """
+        for index in indices:
+            if 0 <= index < len(self.queue):
+                if self.queue[index].video_id not in self._dead_tracks:
+                    return index
+        return None
+
     def forward(self, force: bool = False) -> None:
         """Skip to next track or fetch more from recommendation graph if at tail."""
         if not force and self.repeat_mode == "one" and self.current is not None:
             self.player.setPosition(0)
             self.player.play()
             return
-        if self.cursor + 1 < len(self.queue):
-            self.play_at(self.cursor + 1)
+        ahead = self._first_playable(range(self.cursor + 1, len(self.queue)))
+        if ahead is not None:
+            self.play_at(ahead)
             return
         if self.repeat_mode == "all" and self.queue:
-            self.play_at(0)
-            return
+            wrap = self._first_playable(range(len(self.queue)))
+            if wrap is not None:
+                self.play_at(wrap)
+                return
         if not self.queue or self._extending:
             return
 
@@ -366,6 +556,12 @@ class PlaybackCore(QObject):
 
     # ------------------------------------------------------------------ loading
     def _start_load(self, song: Song) -> None:
+        prefetched = self._take_prefetch(song)
+        if prefetched:
+            # Already resolved while the previous track played — skip the job.
+            self._lifecycle("prefetch_hit", song.video_id)
+            self._on_stream_ready(song, prefetched)
+            return
         job = LoadJob(song, self.resolver)
         job.signals.ready.connect(self._on_stream_ready)
         job.signals.failed.connect(self._on_stream_failed)
@@ -386,18 +582,40 @@ class PlaybackCore(QObject):
             return  # user already moved on
         song.stream_url = url
         self._failed_id = None
+        self._loaded_id = song.video_id
+        self._ended_id = None
+        self._lifecycle("stream_ready", song.video_id)
+
+        # Stop before swapping sources. Setting a source while the previous one
+        # is still playing lets the backend emit EndOfMedia for the outgoing
+        # track, and the status relay reads that as "the new track finished" —
+        # which skipped tracks and restarted others at 0:00.
+        self.player.stop()
         self.player.setSource(QUrl(url))
         self.player.play()
-        self._switching = False
+
+        # _switching deliberately stays True: setSource is asynchronous, so the
+        # backend's own LoadedMedia / BufferedMedia burst arrives after this
+        # returns. _relay_media_status clears the flag once the new source is
+        # genuinely live, which is the first point stale status cannot arrive.
         self.loading_changed.emit(False)
 
-    def _on_stream_failed(self, song: Song, message: str) -> None:
+    def _on_stream_failed(self, song: Song, message: str, permanent: bool = False) -> None:
         if song.video_id != self._wanted:
             return
-        self._switching = False
+        # Nothing of ours is on the player any more. One shared reset instead of
+        # clearing the same fields by hand in three different places.
+        self._reset_source_state()
+        self._disarm_switch_watchdog()
         self.loading_changed.emit(False)
         self.notice.emit("skipping unavailable track")
-        log.warning("playback aborted for %s: %s", song.video_id, message)
+        self._lifecycle("resolve_failed", song.video_id, permanent=permanent)
+        log.warning("playback aborted for %s: %s", song.video_id, _redact(message))
+
+        # An age gate or a deleted video will fail identically forever. Remember
+        # it so auto-advance steps over the track instead of re-resolving it.
+        if permanent:
+            self._dead_tracks.add(song.video_id)
 
         # Same skip budget as a backend failure: a run of unresolvable tracks
         # must not walk the entire queue. force=True so repeat-one cannot pin us
@@ -463,33 +681,106 @@ class PlaybackCore(QObject):
         # entirely — every resolved URL looked like a fresh start.
         if state == QMediaPlayer.PlaybackState.PlayingState:
             self._error_streak = 0
+            # Reaching PlayingState proves the new source is live even if the
+            # backend skipped its LoadedMedia announcement, so the switch flag
+            # can never wedge True and swallow a legitimate end-of-track.
+            if self._loaded_id is not None and self._loaded_id == self._wanted:
+                self._settle_switch()
+        elif self._switching and state == QMediaPlayer.PlaybackState.StoppedState:
+            # The stop() we issued ourselves before setSource. Relaying it as
+            # "paused" flickers the disc and the play icon mid-swap, so the UI
+            # keeps showing the state the user asked for until the new source
+            # is live.
+            return
         self.playing_changed.emit(state == QMediaPlayer.PlaybackState.PlayingState)
 
     def _relay_media_status(self, status: QMediaPlayer.MediaStatus) -> None:
-        if status == QMediaPlayer.MediaStatus.EndOfMedia and not self._switching:
-            log.debug("track finished — rolling into the next one")
-            if self.repeat_mode == "one" and self.current is not None:
-                self.player.setPosition(0)
-                self.player.play()
-                return
-            if self.repeat_mode == "all" and self.cursor + 1 >= len(self.queue) and self.queue:
-                self.play_at(0)
-                return
-            self.forward(force=True)
+        if status in (
+            QMediaPlayer.MediaStatus.LoadedMedia,
+            QMediaPlayer.MediaStatus.BufferedMedia,
+        ):
+            # The source swap is done and the backend's status stream has caught
+            # up with it. Only from here on is an EndOfMedia trustworthy.
+            if self._loaded_id is not None and self._loaded_id == self._wanted:
+                self._settle_switch()
+                # This track is live, so there is time to resolve the next one
+                # behind it. This is the only place prefetch is kicked off: a
+                # resolve for a track that never started playing is wasted work.
+                self._prefetch_next()
+            return
+
+        if status != QMediaPlayer.MediaStatus.EndOfMedia:
+            return
+
+        # EndOfMedia is not by itself a reliable "the track ended" signal: Qt
+        # also emits it for the outgoing media mid-swap and for sources that
+        # never loaded at all. Acting on those is what made tracks jump on
+        # their own and restart at 0:00 unprompted.
+        if self._switching:
+            return
+        if self._loaded_id is None or self._loaded_id != self._wanted:
+            return  # stale status for a source we have already replaced
+        if self._ended_id == self._loaded_id:
+            return  # already acted on this track — a duplicate must not skip two
+
+        self._ended_id = self._loaded_id
+        self._lifecycle("end_of_media", self._ended_id)
+        if self.repeat_mode == "one" and self.current is not None:
+            self.player.setPosition(0)
+            self.player.play()
+            self._ended_id = None  # same source again — let it end a second time
+            return
+        if self.repeat_mode == "all" and self.cursor + 1 >= len(self.queue) and self.queue:
+            self.play_at(0)
+            return
+        self.forward(force=True)
 
     def _relay_error(self, error: QMediaPlayer.Error, message: str) -> None:
         # Guard on track identity, not the source URL. Every resolve mints a new
         # signed URL, so comparing strings never matched, the guard failed open,
         # and the backend walked the queue retrying the same dead track — that is
         # what produced the 1607-error burst in the log.
+        # An error reported for a source we already swapped out is noise from
+        # the outgoing track. Tearing down playback for those stopped music that
+        # was playing perfectly well.
+        if self._loaded_id is not None and self._loaded_id != self._wanted:
+            return
         if self._wanted is not None and self._failed_id == self._wanted:
             return  # already handled this track's failure
         self._failed_id = self._wanted
-        log.warning("media player error (%s): %s", error, message)
+        self._lifecycle(
+            "error",
+            self._wanted,
+            error=str(error).rsplit(".", 1)[-1],
+            detail=_redact(message),
+        )
+        log.warning("media player error (%s): %s", error, _redact(message))
 
         self.player.stop()
+        # Nothing of ours is loaded now, so the EndOfMedia that stop() provokes
+        # for the torn-down source is ignored rather than advancing a second time.
+        self._reset_source_state()
         self.loading_changed.emit(False)
-        self._switching = False
+        self._disarm_switch_watchdog()
+
+        # A 403/410 means the signed URL expired; the track is fine. Invalidate
+        # the cached URL and re-resolve exactly once. Without the one-shot guard
+        # the backend re-reports the same error on every retry and the skip
+        # budget walks the queue — which is what made one expired URL look like a
+        # runaway loop.
+        wanted = self._wanted
+        if wanted and wanted not in self._retried_tracks:
+            self._retried_tracks.add(wanted)
+            self.resolver.cache.invalidate(wanted)
+            song = self.current
+            if song is not None and song.video_id == wanted:
+                self._switching = True
+                self._lifecycle("stream_refresh", wanted)
+                self.notice.emit("refreshing that stream")
+                self.loading_changed.emit(True)
+                self._arm_switch_watchdog()
+                self._start_load(song)
+                return
 
         self._error_streak += 1
         if self._error_streak <= MAX_AUTO_SKIP and self.cursor + 1 < len(self.queue):
@@ -500,3 +791,7 @@ class PlaybackCore(QObject):
         self._error_streak = 0
         if self.queue:
             self.notice.emit("playback hiccup")
+        # Re-mark the failure: _reset_source_state() cleared it above, and if the
+        # backend reports this same dead source again we must not re-run this
+        # handler and reset the skip budget with it.
+        self._failed_id = wanted

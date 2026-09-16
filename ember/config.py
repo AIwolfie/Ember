@@ -39,6 +39,9 @@ VINYL_DEGREES = 0.5        # rotation per tick while audio is playing
 ARTWORK_CACHE_LIMIT = 64
 ANIM_MS = 240
 SEARCH_DEBOUNCE_MS = 350   # ms before search query auto-fires while typing
+SWITCH_TIMEOUT_MS = 18000  # a setSource that never opens fails the load instead of spinning
+STREAM_CACHE_TTL_S = 2700  # 45 min — resolved URLs are signed and expire
+YTDLP_MAX_AGE_DAYS = 30    # warn past this; extractor breakage is the #1 bug report
 
 # ---------------------------------------------------------------- settings keys
 SETTINGS_POS_X = "panel/x"

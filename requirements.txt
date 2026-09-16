@@ -1,6 +1,9 @@
 PyQt6>=6.6.0,<6.12.0
 qtawesome>=1.3.0
 ytmusicapi>=1.7.0,<2.0.0
-yt-dlp>=2024.8.0
+# yt-dlp breaks against YouTube on a rolling basis, so an unpinned install means
+# "worked yesterday" is not a stable state. Floor is a known-good calendar
+# release; ceiling keeps a fresh major from landing unannounced.
+yt-dlp>=2025.10.1,<2027.1.1
 requests>=2.31.0,<3.0.0
 pytest>=8.0.0,<10.0.0

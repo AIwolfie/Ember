@@ -124,8 +124,21 @@ def test_playback_core_repeat_one_and_all_behavior() -> None:
     core.player.setPosition = MagicMock()  # type: ignore[method-assign]
     core.player.play = MagicMock()  # type: ignore[method-assign]
 
+    def arm(track_id: str = "s2") -> None:
+        """State a genuinely-loaded, settled track leaves behind.
+
+        _relay_media_status only trusts an EndOfMedia that matches the track it
+        actually loaded, so firing the signal on a bare core is correctly
+        ignored — the end-of-track handlers have to be armed to be reached.
+        """
+        core._wanted = track_id
+        core._loaded_id = track_id
+        core._ended_id = None
+        core._switching = False
+
     # Test repeat one on EndOfMedia
     core.set_repeat_mode("one")
+    arm()
     core._relay_media_status(QMediaPlayer.MediaStatus.EndOfMedia)
     core.player.setPosition.assert_called_with(0)
     core.player.play.assert_called()
@@ -133,8 +146,51 @@ def test_playback_core_repeat_one_and_all_behavior() -> None:
     # Test repeat all on EndOfMedia at queue end wraps to 0
     core.set_repeat_mode("all")
     core.play_at = MagicMock()  # type: ignore[method-assign]
+    arm()
     core._relay_media_status(QMediaPlayer.MediaStatus.EndOfMedia)
     core.play_at.assert_called_with(0)
+
+
+def test_playback_core_ignores_end_of_media_from_replaced_source() -> None:
+    """The outgoing track's EndOfMedia must not advance the track just loaded."""
+    from PyQt6.QtMultimedia import QMediaPlayer
+    core = _create_core()
+    core.queue = [
+        Song(video_id="old", title="Old", artist="Artist"),
+        Song(video_id="new", title="New", artist="Artist"),
+    ]
+    core.cursor = 0
+    core.forward = MagicMock()  # type: ignore[method-assign]
+    # Mid-swap: the new track is wanted, the old one is still on the player.
+    core._wanted = "new"
+    core._loaded_id = "old"
+    core._switching = True
+
+    core._relay_media_status(QMediaPlayer.MediaStatus.EndOfMedia)
+
+    core.forward.assert_not_called()
+    assert core.cursor == 0
+
+
+def test_playback_core_duplicate_end_of_media_advances_once() -> None:
+    from PyQt6.QtMultimedia import QMediaPlayer
+    core = _create_core()
+    core.queue = [
+        Song(video_id="s1", title="Song 1", artist="Artist"),
+        Song(video_id="s2", title="Song 2", artist="Artist"),
+        Song(video_id="s3", title="Song 3", artist="Artist"),
+    ]
+    core.cursor = 0
+    core.forward = MagicMock()  # type: ignore[method-assign]
+    core._wanted = "s1"
+    core._loaded_id = "s1"
+    core._ended_id = None
+    core._switching = False
+
+    core._relay_media_status(QMediaPlayer.MediaStatus.EndOfMedia)
+    core._relay_media_status(QMediaPlayer.MediaStatus.EndOfMedia)
+
+    core.forward.assert_called_once_with(force=True)
 
 
 def test_playback_core_shuffle_upcoming() -> None:
