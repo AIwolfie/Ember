@@ -242,7 +242,7 @@ Ember features a comprehensive automated test suite covering models, themes, dat
 
 Ember is built with care, craft, and love for music:
 
-- **Mayank Malaviya** ([@AIwolfie](https://github.com/AIwolfie)) — *Original creator, lead architect, and maintainer of Ember.*
+- **Mayank Malaviya** ([@AIwolfie](https://github.com/AIwolfie)) — *Original creator, lead architect, and maintainer of Ember.* <a href="https://aiwolfie.gumroad.com/coffee" target="_blank"><img align="center" src="https://img.shields.io/badge/☕_Buy_Me_a_Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Buy Me a Coffee"/></a>
 - **Muhammad Taezeem Tariq Matta** ([@taezeem14](https://github.com/taezeem14)) — *Contributor — development improvements and project upgrades.*
 
 For full details, see [CREDITS.md](CREDITS.md).
