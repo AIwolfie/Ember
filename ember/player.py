@@ -114,6 +114,7 @@ class PlaybackCore(QObject):
         self._error_streak = 0
         self._active_load_job: Optional[LoadJob] = None
         self._active_radio_job: Optional[RadioJob] = None
+        self._saved_position_ms: int = 0
 
         # Monotonic counter bumped once per play(). Every lifecycle log line
         # carries it, so a status arriving for generation 7 after generation 9
@@ -312,6 +313,7 @@ class PlaybackCore(QObject):
         # through the one shared reset, then re-arm the swap guard — this used to
         # leave _loaded_id pointing at the old track and _switching wedged True.
         self._reset_source_state()
+        self._saved_position_ms = 0
         self._switching = True
         self._lifecycle("play", song.video_id, index=self.cursor)
         self.loading_changed.emit(True)
@@ -605,6 +607,11 @@ class PlaybackCore(QObject):
         self.player.stop()
         self.player.setSource(QUrl(url))
         self.player.play()
+        if self._saved_position_ms > 3000:
+            restore_pos = self._saved_position_ms
+            self._saved_position_ms = 0
+            self.player.setPosition(restore_pos)
+            log.info("resumed playback at preserved position %d ms", restore_pos)
 
         # _switching deliberately stays True: setSource is asynchronous, so the
         # backend's own LoadedMedia / BufferedMedia burst arrives after this
@@ -670,12 +677,20 @@ class PlaybackCore(QObject):
             self._advance_after_extend = False
             if self.cursor + 1 < len(self.queue):
                 self.play_at(self.cursor + 1)
+            elif self.queue and self.auto_queue:
+                self.play_at(0)
 
     def _on_radio_failed(self, seed_id: str, message: str) -> None:
         self._active_radio_job = None
         self._extending = False
-        self._advance_after_extend = False
         log.debug("radio unavailable for %s: %s", seed_id, message)
+        if self._advance_after_extend:
+            self._advance_after_extend = False
+            if self.cursor + 1 < len(self.queue):
+                self.play_at(self.cursor + 1)
+            elif self.queue and self.auto_queue:
+                log.info("radio failed; looping queue to keep music playing")
+                self.play_at(0)
 
     def _on_link_song(self, song: Song) -> None:
         self.adopt([song], 0)
@@ -794,6 +809,11 @@ class PlaybackCore(QObject):
             detail=_redact(message),
         )
         log.warning("media player error (%s): %s", error, _redact(message))
+
+        # Preserve playback position before stopping so stream refresh doesn't restart from 0:00
+        cur_pos = self.player.position()
+        if cur_pos > 3000:
+            self._saved_position_ms = cur_pos
 
         self.player.stop()
         # Nothing of ours is loaded now, so the EndOfMedia that stop() provokes

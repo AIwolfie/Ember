@@ -6,4 +6,9 @@ ytmusicapi>=1.7.0,<2.0.0
 # release; ceiling keeps a fresh major from landing unannounced.
 yt-dlp>=2025.10.1,<2027.1.1
 requests>=2.31.0,<3.0.0
+pypresence>=4.3.0
+winrt-Windows.Media>=2.0.0; sys_platform == 'win32'
+winrt-Windows.Storage.Streams>=2.0.0; sys_platform == 'win32'
+winrt-Windows.Foundation>=2.0.0; sys_platform == 'win32'
+winrt-Windows.Media.Playback>=2.0.0; sys_platform == 'win32'
 pytest>=8.0.0,<10.0.0

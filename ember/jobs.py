@@ -216,17 +216,45 @@ class LyricsSignals(_Signals):
 
 
 class LyricsJob(CancellableJob):
-    """Off-thread lyrics fetch job."""
+    """Off-thread lyrics fetch job with LRCLIB synchronized lyrics priority."""
 
-    def __init__(self, catalog: CatalogSource, video_id: str) -> None:
+    def __init__(
+        self,
+        catalog: CatalogSource,
+        video_id: str,
+        title: str = "",
+        artist: str = "",
+        duration_sec: int = 0,
+    ) -> None:
         super().__init__()
         self.catalog = catalog
         self.video_id = video_id
+        self.title = title
+        self.artist = artist
+        self.duration_sec = duration_sec
         self.signals = LyricsSignals()
 
     def run(self) -> None:
         if self.is_cancelled:
             return
+
+        # 1. Try LRCLIB for synchronized lyrics
+        if self.title and self.artist:
+            from .lyrics import fetch_lrclib
+            try:
+                synced, plain = fetch_lrclib(self.title, self.artist, self.duration_sec)
+                if self.is_cancelled:
+                    return
+                if synced or plain:
+                    display_text = synced or plain or ""
+                    self.signals.done.emit(self.video_id, display_text)
+                    self.signals.ready.emit(self.video_id, display_text)
+                    self.signals.lyrics_ready.emit(self.video_id, display_text, "LRCLIB")
+                    return
+            except Exception as lrc_err:
+                log.debug("LRCLIB lookup failed for %r: %s", self.title, lrc_err)
+
+        # 2. Fall back to YouTube Music catalog lyrics
         try:
             text = self.catalog.lyrics(self.video_id)
             if self.is_cancelled:
@@ -244,3 +272,71 @@ class LyricsJob(CancellableJob):
             log.warning("lyrics job failed for %s: %s", self.video_id, exc)
             self.signals.failed.emit(self.video_id, str(exc))
             self.signals.lyrics_failed.emit(self.video_id, str(exc))
+
+
+# ----------------------------------------------------------- playlist importer
+class PlaylistImportSignals(_Signals):
+    ready = pyqtSignal(list, str)
+    failed = pyqtSignal(str)
+
+
+class PlaylistImportJob(CancellableJob):
+    """Off-thread playlist importer for Spotify and YouTube links."""
+
+    def __init__(self, url: str, catalog: CatalogSource) -> None:
+        super().__init__()
+        self.url = url
+        self.catalog = catalog
+        self.signals = PlaylistImportSignals()
+
+    def run(self) -> None:
+        if self.is_cancelled:
+            return
+        from .importer import SPOTIFY_URL_RE, YOUTUBE_PLAYLIST_RE, fetch_spotify_tracks, parse_youtube_playlist
+
+        try:
+            if YOUTUBE_PLAYLIST_RE.search(self.url):
+                songs = parse_youtube_playlist(self.url)
+                if self.is_cancelled:
+                    return
+                if not songs:
+                    raise RuntimeError("No playable tracks found in YouTube playlist")
+                self.signals.ready.emit(songs, "YouTube Playlist")
+                return
+
+            if SPOTIFY_URL_RE.search(self.url):
+                raw_tracks = fetch_spotify_tracks(self.url)
+                if self.is_cancelled:
+                    return
+                if not raw_tracks:
+                    raise RuntimeError("Could not retrieve tracks from Spotify link")
+
+                songs: list[Song] = []
+                for item in raw_tracks[:60]:
+                    if self.is_cancelled:
+                        return
+                    title = item.get("title", "")
+                    artist = item.get("subtitle", "")
+                    query = f"{title} {artist}".strip()
+                    if not query:
+                        continue
+                    try:
+                        matches = self.catalog.search(query, limit=1)
+                        if matches:
+                            songs.append(matches[0])
+                    except Exception:
+                        pass
+
+                if self.is_cancelled:
+                    return
+                if not songs:
+                    raise RuntimeError("Could not resolve tracks from Spotify link")
+                self.signals.ready.emit(songs, "Spotify Playlist")
+                return
+
+            raise RuntimeError("Unsupported playlist URL format")
+        except Exception as exc:
+            if self.is_cancelled:
+                return
+            log.warning("playlist import failed for %r: %s", self.url, exc)
+            self.signals.failed.emit(str(exc))

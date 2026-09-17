@@ -29,6 +29,8 @@ from .panel import FloatingPanel
 from .player import PlaybackCore
 from .storage import DB_FILENAME, EmberStorage
 from .stream import StreamResolver
+from .smtc import WindowsMediaControls
+from .discord_rpc import DiscordPresence
 from .theme import popup_stylesheet
 from .tray import InstanceGuard, TrayPresence, ember_icon, write_icon
 
@@ -243,10 +245,44 @@ def main() -> int:
     topmost_guard.timeout.connect(panel.ensure_topmost)
     topmost_guard.start()
 
+    # Native Windows SMTC & Discord Rich Presence
+    smtc = WindowsMediaControls(panel)
+    discord = DiscordPresence(parent=panel)
+    discord.connect_async()
+
+    def _sync_media_metadata(song: Any) -> None:
+        if song:
+            smtc.update_metadata(song.title, song.byline, song.artwork_url or "")
+            pos = core.player.position()
+            dur = core.player.duration()
+            discord.update(song.title, song.byline, pos, dur, core.is_playing)
+        else:
+            discord.clear()
+
+    def _sync_media_playing(playing: bool) -> None:
+        smtc.set_playback_status(playing)
+        curr = core.current
+        if curr:
+            pos = core.player.position()
+            dur = core.player.duration()
+            discord.update(curr.title, curr.byline, pos, dur, playing)
+
+    core.song_changed.connect(_sync_media_metadata)
+    core.playing_changed.connect(_sync_media_playing)
+
+    smtc.play_requested.connect(core.resume)
+    smtc.pause_requested.connect(core.pause)
+    smtc.toggle_requested.connect(core.toggle)
+    smtc.next_requested.connect(lambda: core.forward(force=True))
+    smtc.previous_requested.connect(core.back)
+    smtc.stop_requested.connect(core.pause)
+
     app.aboutToQuit.connect(lambda: _persist(panel, core, settings))
     app.aboutToQuit.connect(guard.release)
     app.aboutToQuit.connect(tray.cleanup)
     app.aboutToQuit.connect(storage.close)
+    app.aboutToQuit.connect(smtc.close)
+    app.aboutToQuit.connect(discord.close)
 
     panel.show()
     panel.ensure_topmost()

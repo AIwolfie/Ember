@@ -8,6 +8,7 @@ tinting, responsive search debouncing, and persistent favorites/history tabs.
 
 from __future__ import annotations
 
+import html
 import logging
 import sys
 from typing import Callable, Dict, List, Optional, Tuple
@@ -80,7 +81,9 @@ from .icons import (
     settings_icon,
     shuffle_icon,
 )
-from .jobs import ArtJob, LyricsJob, SearchJob
+from .jobs import ArtJob, LyricsJob, PlaylistImportJob, SearchJob
+from .importer import is_playlist_url
+from .lyrics import find_active_index, parse_lrc
 from .models import Song
 from .player import PlaybackCore
 from .settings_dialog import DEFAULT_HOTKEYS, SettingsDialog
@@ -865,7 +868,7 @@ class FloatingPanel(QWidget):
 
         self.field = QLineEdit(self)
         self.field.setObjectName("SearchField")
-        self.field.setPlaceholderText("Search tracks, artists, or drop YouTube link...")
+        self.field.setPlaceholderText("Search tracks, artists, or paste Spotify / YouTube link...")
         self.field.setFixedHeight(36)
         self.field.setClearButtonEnabled(True)
         row.addWidget(self.field, 1)
@@ -1513,8 +1516,28 @@ class FloatingPanel(QWidget):
     # ------------------------------------------------------------- lyrics slots
     def _fetch_lyrics(self, song: Song) -> None:
         self._current_lyrics_vid = song.video_id
+        self._synced_lyrics: List[Tuple[int, str]] = []
+        self._active_lyric_idx = -1
         self.lyrics_text.setText(f"Searching lyrics for\n{song.title}...")
-        job = LyricsJob(self.core.catalog, song.video_id)
+
+        dur_sec = 0
+        if song.duration:
+            try:
+                parts = [int(p) for p in song.duration.split(":")]
+                if len(parts) == 2:
+                    dur_sec = parts[0] * 60 + parts[1]
+                elif len(parts) == 3:
+                    dur_sec = parts[0] * 3600 + parts[1] * 60 + parts[2]
+            except Exception:
+                pass
+
+        job = LyricsJob(
+            self.core.catalog,
+            song.video_id,
+            title=song.title,
+            artist=song.artist,
+            duration_sec=dur_sec,
+        )
         job.signals.lyrics_ready.connect(self._on_lyrics_ready)
         job.signals.lyrics_failed.connect(self._on_lyrics_failed)
         self.core.pool.start(job)
@@ -1523,15 +1546,42 @@ class FloatingPanel(QWidget):
         if self._current_lyrics_vid != video_id:
             return
         self._lyrics_loaded_for = video_id
-        formatted = lyrics
-        if source:
-            formatted += f"\n\n— Source: {source}"
-        self.lyrics_text.setText(formatted)
+        from .lyrics import parse_lrc
+        parsed = parse_lrc(lyrics)
+        if parsed:
+            self._synced_lyrics = parsed
+            self._active_lyric_idx = -1
+            self._render_synced_lyrics()
+        else:
+            self._synced_lyrics = []
+            formatted = lyrics
+            if source:
+                formatted += f"\n\n— Source: {source}"
+            self.lyrics_text.setText(formatted)
+
+    def _render_synced_lyrics(self) -> None:
+        if not getattr(self, "_synced_lyrics", None):
+            return
+        lines_html = []
+        for i, (_, text) in enumerate(self._synced_lyrics):
+            escaped = html.escape(text) if text else "♪"
+            if i == getattr(self, "_active_lyric_idx", -1):
+                lines_html.append(
+                    f"<p style='color: {Palette.amber_hi}; font-size: 15px; font-weight: 700; margin: 8px 0; text-align: center; line-height: 1.4;'>"
+                    f"▶ {escaped}</p>"
+                )
+            else:
+                lines_html.append(
+                    f"<p style='color: {Palette.faint}; font-size: 13px; font-weight: 400; margin: 6px 0; text-align: center; line-height: 1.4;'>"
+                    f"{escaped}</p>"
+                )
+        self.lyrics_text.setText("".join(lines_html))
 
     def _on_lyrics_failed(self, video_id: str, message: str) -> None:
         if self._current_lyrics_vid != video_id:
             return
         self._lyrics_loaded_for = video_id
+        self._synced_lyrics = []
         self.lyrics_text.setText("Instrumental / No lyrics available")
 
     # -------------------------------------------------------- modes & playback rates
@@ -1632,6 +1682,18 @@ class FloatingPanel(QWidget):
         self.seek.setValue(position)
         self.elapsed.setText(clock(position))
 
+        # Synchronized karaoke-style lyric highlight and auto-scroll
+        if self._active_tab == "lyrics" and getattr(self, "_synced_lyrics", None):
+            idx = find_active_index(self._synced_lyrics, position)
+            if idx != getattr(self, "_active_lyric_idx", -1):
+                self._active_lyric_idx = idx
+                self._render_synced_lyrics()
+                total_lines = len(self._synced_lyrics)
+                if total_lines > 1 and idx >= 0:
+                    bar = self.lyrics_scroll.verticalScrollBar()
+                    ratio = idx / (total_lines - 1)
+                    bar.setValue(int(bar.maximum() * ratio))
+
     def _on_length(self, duration: int) -> None:
         self.seek.setRange(0, max(0, duration))
         self.total.setText(clock(duration))
@@ -1674,11 +1736,34 @@ class FloatingPanel(QWidget):
         text = self.field.text().strip()
         if not text:
             return
+        if is_playlist_url(text):
+            self._import_playlist(text)
+            self.field.clear()
+            return
         if looks_like_link(text):
             self.core.open_link(text)
             self.field.clear()
             return
         self._execute_search(text)
+
+    def _import_playlist(self, url: str) -> None:
+        self._set_status("importing playlist...")
+        job = PlaylistImportJob(self.core.catalog, url)
+        job.signals.ready.connect(self._on_playlist_ready)
+        job.signals.failed.connect(self._on_playlist_failed)
+        self.core.pool.start(job)
+
+    def _on_playlist_ready(self, songs: List[Song], source: str) -> None:
+        if not songs:
+            self._set_status("no tracks found")
+            return
+        self._switch_tab("queue")
+        self.core.adopt(songs, 0)
+        self._set_status(f"imported {pretty_count(len(songs), 'track')} ({source})")
+
+    def _on_playlist_failed(self, error: str) -> None:
+        self._set_status("import failed")
+        log.warning("playlist import failed: %s", error)
 
     def _execute_search(self, query: str) -> None:
         self._set_status("searching")
