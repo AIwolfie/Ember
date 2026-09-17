@@ -112,6 +112,8 @@ class PlaybackCore(QObject):
         self._radio_seed: Optional[str] = None
         self._failed_id: Optional[str] = None
         self._error_streak = 0
+        self._active_load_job: Optional[LoadJob] = None
+        self._active_radio_job: Optional[RadioJob] = None
 
         # Monotonic counter bumped once per play(). Every lifecycle log line
         # carries it, so a status arriving for generation 7 after generation 9
@@ -556,6 +558,9 @@ class PlaybackCore(QObject):
 
     # ------------------------------------------------------------------ loading
     def _start_load(self, song: Song) -> None:
+        if self._active_load_job is not None:
+            self._active_load_job.cancel()
+            self._active_load_job = None
         prefetched = self._take_prefetch(song)
         if prefetched:
             # Already resolved while the previous track played — skip the job.
@@ -563,6 +568,7 @@ class PlaybackCore(QObject):
             self._on_stream_ready(song, prefetched)
             return
         job = LoadJob(song, self.resolver)
+        self._active_load_job = job
         job.signals.ready.connect(self._on_stream_ready)
         job.signals.failed.connect(self._on_stream_failed)
         self.playback_pool.start(job)
@@ -570,14 +576,20 @@ class PlaybackCore(QObject):
     def _start_radio(self, seed_id: str, force: bool = False) -> None:
         if not force and self._radio_seed == seed_id:
             return
+        if self._active_radio_job is not None:
+            self._active_radio_job.cancel()
+            self._active_radio_job = None
         self._radio_seed = seed_id
         job = RadioJob(self.catalog, seed_id, RADIO_DEPTH)
+        self._active_radio_job = job
         job.signals.ready.connect(self._on_radio_ready)
         job.signals.failed.connect(self._on_radio_failed)
         self.pool.start(job)
 
     # ------------------------------------------------------------------- slots
     def _on_stream_ready(self, song: Song, url: str) -> None:
+        if self._active_load_job is not None and getattr(self._active_load_job, "song", None) == song:
+            self._active_load_job = None
         if song.video_id != self._wanted:
             return  # user already moved on
         song.stream_url = url
@@ -601,6 +613,8 @@ class PlaybackCore(QObject):
         self.loading_changed.emit(False)
 
     def _on_stream_failed(self, song: Song, message: str, permanent: bool = False) -> None:
+        if self._active_load_job is not None and getattr(self._active_load_job, "song", None) == song:
+            self._active_load_job = None
         if song.video_id != self._wanted:
             return
         # Nothing of ours is on the player any more. One shared reset instead of
@@ -627,6 +641,7 @@ class PlaybackCore(QObject):
         self._error_streak = 0
 
     def _on_radio_ready(self, seed_id: str, songs: list) -> None:
+        self._active_radio_job = None
         self._extending = False
         # Ignore results from outdated radio jobs
         if seed_id != self._radio_seed:
@@ -657,6 +672,7 @@ class PlaybackCore(QObject):
                 self.play_at(self.cursor + 1)
 
     def _on_radio_failed(self, seed_id: str, message: str) -> None:
+        self._active_radio_job = None
         self._extending = False
         self._advance_after_extend = False
         log.debug("radio unavailable for %s: %s", seed_id, message)
@@ -670,6 +686,8 @@ class PlaybackCore(QObject):
 
     # ------------------------------------------------------------ media relays
     def _relay_progress(self, position_ms: int) -> None:
+        if self._switching and position_ms > 0 and self._loaded_id == self._wanted:
+            self._settle_switch()
         self.progress_changed.emit(int(position_ms))
 
     def _relay_length(self, duration_ms: int) -> None:
@@ -694,10 +712,21 @@ class PlaybackCore(QObject):
             return
         self.playing_changed.emit(state == QMediaPlayer.PlaybackState.PlayingState)
 
+    def _resume_from_stall(self) -> None:
+        """Attempt auto-recovery if playback stalled on network buffer underrun."""
+        if (
+            self._wanted is not None
+            and self.is_playing
+            and self.player.mediaStatus() == QMediaPlayer.MediaStatus.StalledMedia
+        ):
+            log.info("auto-recovering stalled audio stream")
+            self.player.play()
+
     def _relay_media_status(self, status: QMediaPlayer.MediaStatus) -> None:
         if status in (
             QMediaPlayer.MediaStatus.LoadedMedia,
             QMediaPlayer.MediaStatus.BufferedMedia,
+            QMediaPlayer.MediaStatus.BufferingMedia,
         ):
             # The source swap is done and the backend's status stream has caught
             # up with it. Only from here on is an EndOfMedia trustworthy.
@@ -706,7 +735,17 @@ class PlaybackCore(QObject):
                 # This track is live, so there is time to resolve the next one
                 # behind it. This is the only place prefetch is kicked off: a
                 # resolve for a track that never started playing is wasted work.
-                self._prefetch_next()
+                if status in (
+                    QMediaPlayer.MediaStatus.LoadedMedia,
+                    QMediaPlayer.MediaStatus.BufferedMedia,
+                ):
+                    self._prefetch_next()
+            return
+
+        if status == QMediaPlayer.MediaStatus.StalledMedia:
+            log.warning("playback stalled due to buffer underrun — scheduling auto-recovery")
+            self.notice.emit("buffering...")
+            QTimer.singleShot(1500, self._resume_from_stall)
             return
 
         if status != QMediaPlayer.MediaStatus.EndOfMedia:

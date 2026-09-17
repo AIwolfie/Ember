@@ -24,13 +24,30 @@ class _Signals(QObject):
     """Base carrier so each job subclass only declares what it needs."""
 
 
+class CancellableJob(QRunnable):
+    """Base QRunnable supporting cooperative thread cancellation."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._cancelled = False
+        self.setAutoDelete(True)
+
+    def cancel(self) -> None:
+        """Signal the job to abort without emitting results."""
+        self._cancelled = True
+
+    @property
+    def is_cancelled(self) -> bool:
+        return self._cancelled
+
+
 # --------------------------------------------------------------------- search
 class SearchSignals(_Signals):
     done = pyqtSignal(str, list)
     failed = pyqtSignal(str, str)
 
 
-class SearchJob(QRunnable):
+class SearchJob(CancellableJob):
     """Off-thread catalogue search job."""
 
     def __init__(self, catalog: CatalogSource, query: str, limit: int = 12) -> None:
@@ -39,13 +56,18 @@ class SearchJob(QRunnable):
         self.query = query
         self.limit = limit
         self.signals = SearchSignals()
-        self.setAutoDelete(True)
 
     def run(self) -> None:
+        if self.is_cancelled:
+            return
         try:
             results = self.catalog.search(self.query, self.limit)
+            if self.is_cancelled:
+                return
             self.signals.done.emit(self.query, results)
         except Exception as exc:  # noqa: BLE001 - network surface
+            if self.is_cancelled:
+                return
             log.warning("search job failed for %r: %s", self.query, exc)
             self.signals.failed.emit(self.query, str(exc))
 
@@ -56,7 +78,7 @@ class RadioSignals(_Signals):
     failed = pyqtSignal(str, str)
 
 
-class RadioJob(QRunnable):
+class RadioJob(CancellableJob):
     """Off-thread recommendation graph expansion job."""
 
     def __init__(self, catalog: CatalogSource, seed_id: str, limit: int = 26) -> None:
@@ -65,13 +87,18 @@ class RadioJob(QRunnable):
         self.seed_id = seed_id
         self.limit = limit
         self.signals = RadioSignals()
-        self.setAutoDelete(True)
 
     def run(self) -> None:
+        if self.is_cancelled:
+            return
         try:
             recommendations = self.catalog.similar(self.seed_id, self.limit)
+            if self.is_cancelled:
+                return
             self.signals.ready.emit(self.seed_id, recommendations)
         except Exception as exc:  # noqa: BLE001
+            if self.is_cancelled:
+                return
             log.debug("radio job failed for %s: %s", self.seed_id, exc)
             self.signals.failed.emit(self.seed_id, str(exc))
 
@@ -84,7 +111,7 @@ class LoadSignals(_Signals):
     failed = pyqtSignal(object, str, bool)
 
 
-class LoadJob(QRunnable):
+class LoadJob(CancellableJob):
     """Resolve the audio stream for one song. Emits the Song back with its URL."""
 
     def __init__(self, song: Song, resolver: StreamResolver) -> None:
@@ -92,14 +119,19 @@ class LoadJob(QRunnable):
         self.song = song
         self.resolver = resolver
         self.signals = LoadSignals()
-        self.setAutoDelete(True)
 
     def run(self) -> None:
+        if self.is_cancelled:
+            return
         try:
             url, message, permanent = self.resolver.resolve(self.song.video_id)
         except Exception as exc:  # noqa: BLE001 - resolver contract breach
+            if self.is_cancelled:
+                return
             log.warning("stream resolve failed for %s: %s", self.song.video_id, exc)
             self.signals.failed.emit(self.song, str(exc), False)
+            return
+        if self.is_cancelled:
             return
         if url:
             self.signals.ready.emit(self.song, url)
@@ -114,7 +146,7 @@ class LinkSignals(_Signals):
     failed = pyqtSignal(str)
 
 
-class LinkJob(QRunnable):
+class LinkJob(CancellableJob):
     """Turn an arbitrary video/song URL into a playable Song dataclass."""
 
     def __init__(self, resolver: StreamResolver, url: str) -> None:
@@ -122,15 +154,20 @@ class LinkJob(QRunnable):
         self.resolver = resolver
         self.url = url
         self.signals = LinkSignals()
-        self.setAutoDelete(True)
 
     def run(self) -> None:
+        if self.is_cancelled:
+            return
         try:
             song = self.resolver.describe(self.url)
+            if self.is_cancelled:
+                return
             if song is None:
                 raise RuntimeError("that link did not resolve to a track")
             self.signals.ready.emit(song)
         except Exception as exc:  # noqa: BLE001
+            if self.is_cancelled:
+                return
             log.warning("link resolve failed for %r: %s", self.url, exc)
             self.signals.failed.emit(str(exc))
 
@@ -141,7 +178,7 @@ class ArtSignals(_Signals):
     failed = pyqtSignal(str, str)
 
 
-class ArtJob(QRunnable):
+class ArtJob(CancellableJob):
     """Best-effort cover art download with timeout guards."""
 
     def __init__(self, song_id: str, url: str, timeout: float = 6.0) -> None:
@@ -150,16 +187,21 @@ class ArtJob(QRunnable):
         self.url = url
         self.timeout = timeout
         self.signals = ArtSignals()
-        self.setAutoDelete(True)
 
     def run(self) -> None:
+        if self.is_cancelled:
+            return
         try:
             with requests.get(self.url, timeout=self.timeout) as response:
+                if self.is_cancelled:
+                    return
                 if response.status_code == 200 and response.content:
                     self.signals.arrived.emit(self.song_id, response.content)
                 else:
                     self.signals.failed.emit(self.song_id, f"HTTP {response.status_code}")
         except Exception as exc:  # noqa: BLE001
+            if self.is_cancelled:
+                return
             log.debug("artwork fetch failed for %s: %s", self.song_id, exc)
             self.signals.failed.emit(self.song_id, str(exc))
 
@@ -173,7 +215,7 @@ class LyricsSignals(_Signals):
     lyrics_failed = pyqtSignal(str, str)
 
 
-class LyricsJob(QRunnable):
+class LyricsJob(CancellableJob):
     """Off-thread lyrics fetch job."""
 
     def __init__(self, catalog: CatalogSource, video_id: str) -> None:
@@ -181,11 +223,14 @@ class LyricsJob(QRunnable):
         self.catalog = catalog
         self.video_id = video_id
         self.signals = LyricsSignals()
-        self.setAutoDelete(True)
 
     def run(self) -> None:
+        if self.is_cancelled:
+            return
         try:
             text = self.catalog.lyrics(self.video_id)
+            if self.is_cancelled:
+                return
             if text:
                 self.signals.done.emit(self.video_id, text)
                 self.signals.ready.emit(self.video_id, text)
@@ -194,6 +239,8 @@ class LyricsJob(QRunnable):
                 self.signals.failed.emit(self.video_id, "No lyrics found for this track")
                 self.signals.lyrics_failed.emit(self.video_id, "No lyrics found for this track")
         except Exception as exc:  # noqa: BLE001
+            if self.is_cancelled:
+                return
             log.warning("lyrics job failed for %s: %s", self.video_id, exc)
             self.signals.failed.emit(self.video_id, str(exc))
             self.signals.lyrics_failed.emit(self.video_id, str(exc))

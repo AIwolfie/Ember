@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import logging
 import time
 from typing import Any, Callable, Dict, List, Optional, TypeVar
@@ -48,19 +49,20 @@ def _with_retry(
 
 def _artist_line(item: Dict[str, Any]) -> str:
     """Extract and normalize artist name(s) from a search or watch item."""
-    raw = item.get("artists") or item.get("author") or []
+    raw = item.get("artists") or item.get("author") or item.get("subtitle") or []
     if isinstance(raw, dict):
         raw = [raw]
     if isinstance(raw, list):
-        names = [
-            entry.get("name")
-            for entry in raw
-            if isinstance(entry, dict) and entry.get("name")
-        ]
+        names = []
+        for entry in raw:
+            if isinstance(entry, dict) and entry.get("name"):
+                names.append(str(entry["name"]).strip())
+            elif isinstance(entry, str) and entry.strip():
+                names.append(entry.strip())
         if names:
-            return ", ".join(names)
+            return html.unescape(", ".join(names))
     if isinstance(raw, str) and raw.strip():
-        return raw.strip()
+        return html.unescape(raw.strip())
     return "unknown artist"
 
 
@@ -185,11 +187,21 @@ class CatalogSource:
         video_id = item.get("videoId")
         if not video_id:
             return None
-        duration = item.get(duration_key) or ""
+        raw_dur = item.get(duration_key)
+        if raw_dur is None:
+            raw_dur = item.get("duration") or item.get("length") or ""
+        if isinstance(raw_dur, (int, float)):
+            minutes = int(raw_dur) // 60
+            seconds = int(raw_dur) % 60
+            duration = f"{minutes}:{seconds:02d}"
+        else:
+            duration = str(raw_dur).strip()
+
+        raw_title = str(item.get("title") or "untitled").strip()
         return Song(
-            video_id=str(video_id),
-            title=str(item.get("title") or "untitled"),
+            video_id=str(video_id).strip(),
+            title=html.unescape(raw_title),
             artist=_artist_line(item),
-            duration=str(duration),
+            duration=duration,
             artwork_url=_artwork_url(item),
         )

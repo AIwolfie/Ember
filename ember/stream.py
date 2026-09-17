@@ -7,6 +7,7 @@ yt-dlp. Nothing is ever written to disk — we only read the resolved URL.
 from __future__ import annotations
 
 import datetime
+import html
 import logging
 import threading
 import time
@@ -164,6 +165,11 @@ BASE_OPTIONS: Dict[str, Any] = {
     "retries": 0,
     "socket_timeout": 15,
     "extractor_retries": 0,
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["android", "web"],
+        }
+    },
 }
 
 
@@ -252,18 +258,27 @@ class StreamResolver:
     def _pick_url(info: Dict[str, Any]) -> Optional[str]:
         """Best playable audio URL from an extractor response, M4A first.
 
-        Collect every usable audio format and pick from the list. The old code
-        returned info["url"] straight away, which made the M4A preference below
-        dead code: yt-dlp had already chosen bestaudio for us, and that choice
-        is often WebM/Opus, which Windows Media Foundation cannot demux past the
-        opening cluster.
+        Filters out segmented DASH/HLS protocols that Windows Media Foundation
+        cannot demux over plain HTTP, and prioritizes clean monolithic AAC/M4A.
         """
+        # Unwrap container if wrapped in playlist or entries structure
+        if info.get("_type") == "playlist" or "entries" in info:
+            entries = info.get("entries")
+            if isinstance(entries, list):
+                first = next((e for e in entries if isinstance(e, dict)), None)
+                if first:
+                    info = first
+
         raw_formats: List[Dict[str, Any]] = info.get("formats") or []
-        formats = [
-            fmt
-            for fmt in raw_formats
-            if fmt.get("acodec") not in (None, "none") and fmt.get("url")
-        ]
+        formats: List[Dict[str, Any]] = []
+        for fmt in raw_formats:
+            acodec = str(fmt.get("acodec") or "").lower()
+            url = fmt.get("url")
+            protocol = str(fmt.get("protocol") or "").lower()
+            # Reject missing URLs, audio-less streams, and fragmented DASH/HLS protocols
+            if not url or acodec in ("", "none") or "dash" in protocol or "frag" in protocol or "m3u8" in protocol:
+                continue
+            formats.append(fmt)
 
         # Fall back to the top-level entry only when the format list is empty.
         direct = info.get("url")
@@ -273,17 +288,22 @@ class StreamResolver:
         def _rank(fmt: Dict[str, Any]) -> tuple:
             ext = str(fmt.get("ext") or "").lower()
             acodec = str(fmt.get("acodec") or "").lower()
+            vcodec = str(fmt.get("vcodec") or "none").lower()
+            is_audio_only = vcodec in ("none", "")
             is_mp4 = ext == "m4a" or acodec.startswith("mp4a")
             # WebM/Opus last resort only — WMF cuts playback on those.
             is_webm = ext == "webm" or acodec.startswith("opus")
+            abr = float(fmt.get("abr") or 0)
+            filesize = float(fmt.get("filesize") or fmt.get("filesize_approx") or 0)
             return (
+                0 if is_audio_only else 1,
                 0 if is_mp4 else (2 if is_webm else 1),
-                -(fmt.get("abr") or 0),
-                -(fmt.get("filesize") or 0),
+                -abr,
+                filesize if is_audio_only else -filesize,
             )
 
         formats.sort(key=_rank)
-        return formats[0]["url"]
+        return formats[0].get("url")
 
     def describe(self, url: str) -> Optional[Song]:
         """Turn a pasted link into a Song so it can enter the normal queue."""
@@ -294,13 +314,24 @@ class StreamResolver:
         except Exception as exc:
             log.error("describe failed for %r: %s", url, exc)
             return None
+
+        if info.get("_type") == "playlist" or "entries" in info:
+            entries = info.get("entries")
+            if isinstance(entries, list):
+                first = next((e for e in entries if isinstance(e, dict)), None)
+                if first:
+                    info = first
+
         video_id = info.get("id")
         if not video_id:
             return None
+
+        raw_title = str(info.get("title") or "untitled")
+        raw_artist = str(info.get("uploader") or info.get("channel") or "youtube")
         return Song(
             video_id=str(video_id),
-            title=str(info.get("title") or "untitled"),
-            artist=str(info.get("uploader") or info.get("channel") or "youtube"),
+            title=html.unescape(raw_title),
+            artist=html.unescape(raw_artist),
             duration=str(info.get("duration_string") or ""),
             artwork_url=str(info.get("thumbnail") or ""),
         )

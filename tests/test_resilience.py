@@ -85,3 +85,51 @@ def test_art_job_signals() -> None:
     job = ArtJob("vid_test", "http://example.com/fake.jpg")
     assert hasattr(job.signals, "arrived")
     assert hasattr(job.signals, "failed")
+
+
+def test_job_cancellation() -> None:
+    from ember.jobs import CancellableJob, SearchJob
+    from unittest.mock import MagicMock
+
+    job = CancellableJob()
+    assert not job.is_cancelled
+    job.cancel()
+    assert job.is_cancelled
+
+    mock_catalog = MagicMock()
+    search_job = SearchJob(mock_catalog, "test query")
+    search_job.cancel()
+    search_job.run()
+    # When cancelled, search_job must exit without calling catalog.search
+    mock_catalog.search.assert_not_called()
+
+
+def test_stream_pick_url_filters_dash_and_frag() -> None:
+    from ember.stream import StreamResolver
+
+    info = {
+        "formats": [
+            {"acodec": "mp4a.40.2", "ext": "m4a", "url": "https://dash.audio", "protocol": "http_dash_segments", "abr": 160},
+            {"acodec": "opus", "ext": "webm", "url": "https://frag.audio", "protocol": "m3u8_native", "abr": 160},
+            {"acodec": "mp4a.40.2", "ext": "m4a", "url": "https://clean.audio/stream.m4a", "protocol": "https", "abr": 128},
+        ]
+    }
+    url = StreamResolver._pick_url(info)
+    assert url == "https://clean.audio/stream.m4a"
+
+
+def test_catalog_unescapes_html_and_formats_numeric_duration() -> None:
+    from ember.catalog import CatalogSource
+
+    raw = {
+        "videoId": "test_123",
+        "title": "Rock &amp; Roll &#39;26",
+        "author": "Simon &amp; Garfunkel",
+        "duration": 215,  # 3:35
+    }
+    song = CatalogSource._build(raw)
+    assert song is not None
+    assert song.title == "Rock & Roll '26"
+    assert song.artist == "Simon & Garfunkel"
+    assert song.duration == "3:35"
+
