@@ -47,6 +47,8 @@ from .config import (
     DEFAULT_OPACITY,
     EXPANDED_HEIGHT,
     PANEL_WIDTH,
+    PILL_HEIGHT,
+    PILL_WIDTH,
     Palette,
     QUEUE_VIEW_HEIGHT,
     SEARCH_DEBOUNCE_MS,
@@ -365,14 +367,32 @@ class VolumeDial(QWidget):
 
     changed = pyqtSignal(int)
 
-    def __init__(self, value: int, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, value: int, core: Optional[PlaybackCore] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
+        self.core = core
         self.setFixedSize(30, 30)
         self.setCursor(Qt.CursorShape.SizeVerCursor)
         self._value = max(0, min(100, int(value)))
         self._drag_origin: Optional[QPoint] = None
         self._drag_value = self._value
-        self.setToolTip(f"volume {self._value}%")
+        self.setToolTip(f"volume {self._value}% (right-click for audio devices)")
+
+    def contextMenuEvent(self, event) -> None:  # noqa: N802
+        if not self.core:
+            return
+        menu = QMenu(self)
+        devices = self.core.available_audio_devices()
+        current_dev = self.core.current_audio_device_name()
+        if devices:
+            header_act = menu.addAction("OUTPUT DEVICES")
+            header_act.setEnabled(False)
+            menu.addSeparator()
+            for dev_name in devices:
+                act = menu.addAction(dev_name)
+                act.setCheckable(True)
+                act.setChecked(dev_name == current_dev)
+                act.triggered.connect(lambda chk, d=dev_name: self.core.set_audio_device(d))
+        menu.exec(event.globalPos())
 
     def value(self) -> int:
         return self._value
@@ -555,6 +575,8 @@ class FloatingPanel(QWidget):
         self.storage = storage
         self.settings = settings or QSettings()
         self.expanded = False
+        self.view_mode = "ribbon"  # "pill", "ribbon", "expanded"
+        self.setAcceptDrops(True)
 
         self._drag_offset: Optional[QPoint] = None
         self._anchor: Optional[Tuple[str, int, str, int]] = None
@@ -616,8 +638,42 @@ class FloatingPanel(QWidget):
 
         self.ribbon = self._build_ribbon()
         self.panel = self._build_panel()
+        self.pill = self._build_pill()
         stage.addWidget(self.ribbon)
         stage.addWidget(self.panel)
+        stage.addWidget(self.pill)
+        self.pill.setVisible(False)
+
+    def _build_pill(self) -> QWidget:
+        pill = QWidget(self)
+        pill.setObjectName("PillMode")
+        pill.setFixedHeight(PILL_HEIGHT - 2)
+        layout = QHBoxLayout(pill)
+        layout.setContentsMargins(10, 0, 10, 0)
+        layout.setSpacing(8)
+
+        self.pill_equaliser = EqualiserBars(pill)
+        layout.addWidget(self.pill_equaliser, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        self.pill_title = QLabel("Ember", pill)
+        self.pill_title.setStyleSheet(f"color: {Palette.text}; font-size: 11px; font-weight: 600;")
+        self.pill_title.setFixedWidth(112)
+        layout.addWidget(self.pill_title, 1, Qt.AlignmentFlag.AlignVCenter)
+
+        self.pill_play = self._ghost_btn(22)
+        self.pill_play.setIcon(play_icon())
+        self.pill_play.setIconSize(QSize(12, 12))
+        self.pill_play.clicked.connect(self.core.toggle)
+        layout.addWidget(self.pill_play, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        self.pill_expand = self._ghost_btn(22)
+        self.pill_expand.setIcon(expand_icon())
+        self.pill_expand.setIconSize(QSize(12, 12))
+        self.pill_expand.setToolTip("expand to ribbon (or press Ctrl+Alt+P)")
+        self.pill_expand.clicked.connect(self.to_ribbon)
+        layout.addWidget(self.pill_expand, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        return pill
 
     # ---------------------------------------------------------------- compact
     def _build_ribbon(self) -> QWidget:
@@ -1016,7 +1072,7 @@ class FloatingPanel(QWidget):
 
         row.addStretch(1)
 
-        self.volume = VolumeDial(self.core.volume(), self)
+        self.volume = VolumeDial(self.core.volume(), self.core, self)
         row.addWidget(self.volume, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self.settings_btn = self._pill_btn(28)
@@ -1279,6 +1335,11 @@ class FloatingPanel(QWidget):
         dlg.normalization_changed.connect(self.core.set_normalize_volume)
         dlg.endless_changed.connect(self._on_endless_from_settings)
         dlg.hotkeys_changed.connect(lambda _: self.hotkeys_updated.emit())
+        dlg.device_changed.connect(self.core.set_audio_device)
+        dlg.quality_changed.connect(self.core.resolver.set_quality_mode)
+        if self.core.disk_cache:
+            dlg.cache_toggled.connect(lambda en: setattr(self.core.disk_cache, "enabled", en))
+            dlg.cache_cleared.connect(self.core.disk_cache.clear)
         dlg.exec()
 
     def set_window_opacity_percent(self, percent: int) -> None:
@@ -1312,29 +1373,81 @@ class FloatingPanel(QWidget):
 
     # ------------------------------------------------------------- appearance
     def _apply_size(self) -> None:
-        height = COMPACT_HEIGHT if not self.expanded else EXPANDED_HEIGHT
-        self.setFixedSize(PANEL_WIDTH + SHELL_MARGIN * 2, height + SHELL_MARGIN * 2)
+        if getattr(self, "view_mode", "ribbon") == "pill":
+            w = PILL_WIDTH
+            h = PILL_HEIGHT
+        elif self.expanded:
+            w = PANEL_WIDTH
+            h = EXPANDED_HEIGHT
+        else:
+            w = PANEL_WIDTH
+            h = COMPACT_HEIGHT
+        self.setFixedSize(w + SHELL_MARGIN * 2, h + SHELL_MARGIN * 2)
+
+    def to_pill(self) -> None:
+        self._capture_anchor()
+        self.view_mode = "pill"
+        self.expanded = False
+        self.panel.setVisible(False)
+        self.ribbon.setVisible(False)
+        self.pill.setVisible(True)
+        self._apply_anchor()
+        self.ensure_topmost()
+
+    def to_ribbon(self) -> None:
+        self._capture_anchor()
+        self.view_mode = "ribbon"
+        self.expanded = False
+        self.panel.setVisible(False)
+        self.pill.setVisible(False)
+        self.ribbon.setVisible(True)
+        self._apply_anchor()
+        self.ensure_topmost()
 
     def expand(self) -> None:
-        if self.expanded:
+        if self.view_mode == "expanded":
             return
         self._capture_anchor()
+        self.view_mode = "expanded"
         self.expanded = True
         self.ribbon.setVisible(False)
+        self.pill.setVisible(False)
         self.panel.setVisible(True)
         self._apply_anchor()
         self._refresh_tab_content()
         self.ensure_topmost()
 
     def collapse(self) -> None:
-        if not self.expanded:
-            return
-        self._capture_anchor()
-        self.expanded = False
-        self.panel.setVisible(False)
-        self.ribbon.setVisible(True)
-        self._apply_anchor()
-        self.ensure_topmost()
+        self.to_ribbon()
+
+    def toggle_expand(self) -> None:
+        if self.view_mode == "expanded":
+            self.to_ribbon()
+        elif self.view_mode == "ribbon":
+            self.expand()
+        else:
+            self.to_ribbon()
+
+    def toggle_pill(self) -> None:
+        if self.view_mode == "pill":
+            self.to_ribbon()
+        else:
+            self.to_pill()
+
+    # Drag & drop local lossless files (FLAC, WAV, ALAC, MP3, M4A)
+    def dragEnterEvent(self, event) -> None:  # noqa: N802
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event) -> None:  # noqa: N802
+        from pathlib import Path
+        for url in event.mimeData().urls():
+            if url.isLocalFile():
+                p = url.toLocalFile()
+                if p.lower().endswith((".flac", ".wav", ".alac", ".m4a", ".mp3")):
+                    self.core.play_local_file(p)
+                    self._set_status(f"playing local {Path(p).stem[:16]}")
+                    break
 
     def _capture_anchor(self) -> None:
         """Record which screen edges the panel hugs and how far it sits from them."""
@@ -1485,6 +1598,9 @@ class FloatingPanel(QWidget):
             self.hero_art.setPixmap(music_icon(Palette.amber_hi).pixmap(40, 40))
             self._request_art(song)
 
+        # Micro-pill title ticker
+        elide_into(self.pill_title, f"{song.title} • {song.byline}", 112)
+
         # Show desktop toast if enabled
         toast_enabled = str(self.settings.value(SETTINGS_TOAST_ENABLED, "true")).lower() in ("true", "1", "yes")
         if toast_enabled:
@@ -1510,6 +1626,8 @@ class FloatingPanel(QWidget):
     def _on_playing(self, playing: bool) -> None:
         self.ribbon_play.setIcon(pause_icon() if playing else play_icon())
         self.panel_play.setIcon(pause_icon() if playing else play_icon())
+        self.pill_play.setIcon(pause_icon() if playing else play_icon())
+        self.pill_equaliser.set_on(playing)
         self.disc.set_spinning(playing)
         self._set_status("playing" if playing else "paused")
 
@@ -1833,6 +1951,7 @@ class FloatingPanel(QWidget):
             (cfg_expand, self.toggle_expand),
             ("Ctrl+Alt+Up", self.expand),
             ("Ctrl+Alt+Down", self.collapse),
+            ("Ctrl+Alt+P", self.toggle_pill),
             ("Ctrl+Alt+F", self._focus_field),
         ]
 

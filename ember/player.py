@@ -19,6 +19,7 @@ from typing import Any, Callable, Iterable, List, Optional, Set
 from PyQt6.QtCore import QObject, QThreadPool, QTimer, QUrl, pyqtSignal
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 
+from .cache import AudioDiskCache
 from .catalog import CatalogSource
 from .config import (
     DEFAULT_VOLUME,
@@ -26,7 +27,7 @@ from .config import (
     SEEK_MS_BACKSTEP,
     SWITCH_TIMEOUT_MS,
 )
-from .jobs import LinkJob, LoadJob, RadioJob
+from .jobs import CacheTrackJob, LinkJob, LoadJob, RadioJob
 from .models import Song
 from .stream import StreamResolver
 
@@ -69,11 +70,15 @@ class PlaybackCore(QObject):
         self,
         catalog: CatalogSource,
         resolver: StreamResolver,
+        disk_cache: Optional[AudioDiskCache] = None,
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
         self.catalog = catalog
         self.resolver = resolver
+        self.disk_cache = disk_cache
+        if self.disk_cache and not self.resolver.disk_cache:
+            self.resolver.disk_cache = self.disk_cache
 
         # Dedicated playback thread pool: audio resolution NEVER waits on background radio/art
         self.playback_pool = QThreadPool(self)
@@ -336,6 +341,64 @@ class PlaybackCore(QObject):
         self.cursor = index
         self.cursor_changed.emit(index)
         self.play(self.queue[index], expand=False)
+
+    # ----------------------------------------------------------- audio devices
+    def available_audio_devices(self) -> List[str]:
+        """List descriptions of available physical audio output devices."""
+        try:
+            from PyQt6.QtMultimedia import QMediaDevices
+            return [dev.description() for dev in QMediaDevices.audioOutputs()]
+        except Exception:
+            return []
+
+    def current_audio_device_name(self) -> str:
+        """Name of active audio output device."""
+        try:
+            dev = self.output.device()
+            return dev.description() if dev else "Default"
+        except Exception:
+            return "Default"
+
+    def set_audio_device(self, device_name: str) -> bool:
+        """Hot-swap the active audio output device on the fly without stopping playback."""
+        try:
+            from PyQt6.QtMultimedia import QMediaDevices
+            for dev in QMediaDevices.audioOutputs():
+                if dev.description() == device_name:
+                    self.output.setDevice(dev)
+                    log.info("Switched audio output device to %r", device_name)
+                    return True
+        except Exception as exc:
+            log.warning("Failed to switch audio output device %r: %s", device_name, exc)
+        return False
+
+    def play_local_file(self, file_path: str) -> None:
+        """Play a local audio file directly with bit-perfect lossless fidelity."""
+        from pathlib import Path
+        p = Path(file_path)
+        if not p.is_file():
+            return
+        video_id = f"local_{p.stem}"
+        song = Song(
+            video_id=video_id,
+            title=p.stem,
+            artist="Local Lossless Audio",
+            duration="",
+            artwork_url="",
+        )
+        self.queue = [song]
+        self.cursor = 0
+        self.queue_changed.emit(self.queue)
+        self.cursor_changed.emit(0)
+
+        self._loaded_id = song.video_id
+        self._wanted = song.video_id
+        self._switching = False
+        self.song_changed.emit(song)
+        self.player.setSource(QUrl.fromLocalFile(str(p.resolve())))
+        self.player.play()
+        self.playing_changed.emit(True)
+        log.info("Playing local audio file: %s", p)
 
     # --------------------------------------------------------------- transport
     @property
@@ -618,6 +681,11 @@ class PlaybackCore(QObject):
         # returns. _relay_media_status clears the flag once the new source is
         # genuinely live, which is the first point stale status cannot arrive.
         self.loading_changed.emit(False)
+
+        # Background persistent audio caching
+        if self.disk_cache and (url.startswith("http://") or url.startswith("https://")):
+            cache_job = CacheTrackJob(self.disk_cache, song.video_id, url)
+            self.pool.start(cache_job)
 
     def _on_stream_failed(self, song: Song, message: str, permanent: bool = False) -> None:
         if self._active_load_job is not None and getattr(self._active_load_job, "song", None) == song:

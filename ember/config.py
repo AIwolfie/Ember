@@ -28,6 +28,8 @@ ART_COMPACT = 38
 ART_HERO = 76
 QUEUE_VIEW_HEIGHT = 168
 EXPANDED_HEIGHT = 556      # full panel shell height
+PILL_WIDTH = 216           # micro-pill / dynamic island width
+PILL_HEIGHT = 38           # micro-pill / dynamic island height
 
 # ---------------------------------------------------------------- behaviour
 RADIO_DEPTH = 26           # how many look-alike tracks we pull per seed
@@ -42,13 +44,20 @@ SEARCH_DEBOUNCE_MS = 350   # ms before search query auto-fires while typing
 SWITCH_TIMEOUT_MS = 28000  # a setSource that never opens fails the load instead of spinning
 STREAM_CACHE_TTL_S = 2700  # 45 min — resolved URLs are signed and expire
 YTDLP_MAX_AGE_DAYS = 30    # warn past this; extractor breakage is the #1 bug report
+DEFAULT_CACHE_MAX_MB = 500 # persistent audio cache cap
 
 # ---------------------------------------------------------------- settings keys
 SETTINGS_POS_X = "panel/x"
 SETTINGS_POS_Y = "panel/y"
 SETTINGS_EXPANDED = "panel/expanded"
+SETTINGS_VIEW_MODE = "ui/view_mode"
 SETTINGS_VOLUME = "audio/volume"
 SETTINGS_NORMALIZE_VOLUME = "audio/normalize_volume"
+SETTINGS_AUDIO_DEVICE = "audio/device"
+SETTINGS_AUDIO_QUALITY = "audio/quality"
+SETTINGS_CACHE_ENABLED = "cache/enabled"
+SETTINGS_CACHE_MAX_MB = "cache/max_mb"
+SETTINGS_LISTENBRAINZ_TOKEN = "scrobble/listenbrainz_token"
 SETTINGS_AUTO_QUEUE = "queue/endless"
 SETTINGS_THEME = "ui/theme"
 SETTINGS_TOAST_ENABLED = "ui/toast_enabled"

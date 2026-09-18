@@ -340,3 +340,33 @@ class PlaylistImportJob(CancellableJob):
                 return
             log.warning("playlist import failed for %r: %s", self.url, exc)
             self.signals.failed.emit(str(exc))
+
+
+# ----------------------------------------------------------- disk audio cache
+class CacheTrackJob(CancellableJob):
+    """Downloads audio stream bytes to AudioDiskCache in the background."""
+
+    def __init__(self, disk_cache: Any, video_id: str, stream_url: str) -> None:
+        super().__init__()
+        self.disk_cache = disk_cache
+        self.video_id = video_id
+        self.stream_url = stream_url
+
+    def run(self) -> None:
+        if self.is_cancelled or not self.disk_cache or not self.stream_url:
+            return
+        if self.stream_url.startswith("file:") or self.disk_cache.has(self.video_id):
+            return
+        try:
+            with requests.get(self.stream_url, stream=True, timeout=30) as resp:
+                if resp.status_code == 200:
+                    chunks = bytearray()
+                    for chunk in resp.iter_content(chunk_size=65536):
+                        if self.is_cancelled:
+                            return
+                        chunks.extend(chunk)
+                    if not self.is_cancelled and chunks:
+                        ext = "opus" if "webm" in self.stream_url else "m4a"
+                        self.disk_cache.store(self.video_id, bytes(chunks), ext=ext)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("Background track caching failed for %s: %s", self.video_id, exc)

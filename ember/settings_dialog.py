@@ -28,8 +28,12 @@ from PyQt6.QtWidgets import (
 from .config import (
     DEFAULT_OPACITY,
     Palette,
+    SETTINGS_AUDIO_DEVICE,
+    SETTINGS_AUDIO_QUALITY,
     SETTINGS_AUTO_QUEUE,
+    SETTINGS_CACHE_ENABLED,
     SETTINGS_HOTKEYS,
+    SETTINGS_LISTENBRAINZ_TOKEN,
     SETTINGS_NORMALIZE_VOLUME,
     SETTINGS_OPACITY,
     SETTINGS_THEME,
@@ -70,6 +74,11 @@ class SettingsDialog(QDialog):
     endless_changed = pyqtSignal(bool)
     toast_changed = pyqtSignal(bool)
     hotkeys_changed = pyqtSignal(dict)
+    device_changed = pyqtSignal(str)
+    quality_changed = pyqtSignal(str)
+    cache_toggled = pyqtSignal(bool)
+    cache_cleared = pyqtSignal()
+    listenbrainz_token_changed = pyqtSignal(str)
 
     def __init__(self, settings: QSettings, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -83,7 +92,7 @@ class SettingsDialog(QDialog):
             | Qt.WindowType.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setFixedSize(390, 540)
+        self.setFixedSize(400, 680)
 
         self._build()
         self._load_values()
@@ -188,6 +197,63 @@ class SettingsDialog(QDialog):
         self.chk_toast.toggled.connect(self._on_toast_toggled)
         layout.addWidget(self.chk_toast)
 
+        # Output Device row
+        dev_row = QHBoxLayout()
+        dev_lbl = QLabel("Output Device:", self)
+        self.device_combo = QComboBox(self)
+        try:
+            from PyQt6.QtMultimedia import QMediaDevices
+            for dev in QMediaDevices.audioOutputs():
+                self.device_combo.addItem(dev.description())
+        except Exception:
+            pass
+        self.device_combo.currentTextChanged.connect(self._on_device_selected)
+        dev_row.addWidget(dev_lbl)
+        dev_row.addWidget(self.device_combo, 1)
+        layout.addLayout(dev_row)
+
+        # Audio Quality row
+        qual_row = QHBoxLayout()
+        qual_lbl = QLabel("Audio Quality:", self)
+        self.quality_combo = QComboBox(self)
+        self.quality_combo.addItem("Studio (Opus 48kHz / FLAC)", "studio")
+        self.quality_combo.addItem("Standard (AAC / M4A)", "standard")
+        self.quality_combo.currentIndexChanged.connect(self._on_quality_selected)
+        qual_row.addWidget(qual_lbl)
+        qual_row.addWidget(self.quality_combo, 1)
+        layout.addLayout(qual_row)
+
+        # Disk cache row
+        cache_row = QHBoxLayout()
+        self.chk_cache = QCheckBox("Disk Cache (0ms Replay)", self)
+        self.chk_cache.toggled.connect(self._on_cache_toggled)
+        self.btn_clear_cache = QPushButton("Clear Cache", self)
+        self.btn_clear_cache.setObjectName("Pill")
+        self.btn_clear_cache.setFixedHeight(24)
+        self.btn_clear_cache.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear_cache.clicked.connect(self._on_clear_cache)
+        cache_row.addWidget(self.chk_cache, 1)
+        cache_row.addWidget(self.btn_clear_cache)
+        layout.addLayout(cache_row)
+
+        # Scrobbler section
+        scrobble_hdr = QHBoxLayout()
+        scrobble_sec = QLabel("SCROBBLING", self)
+        scrobble_sec.setObjectName("SettingsSection")
+        scrobble_hdr.addWidget(scrobble_sec)
+        scrobble_hdr.addStretch(1)
+        layout.addLayout(scrobble_hdr)
+
+        lb_row = QHBoxLayout()
+        lb_label = QLabel("ListenBrainz:", self)
+        self.lb_token_input = QLineEdit(self)
+        self.lb_token_input.setObjectName("SearchField")
+        self.lb_token_input.setPlaceholderText("User Token...")
+        self.lb_token_input.setFixedHeight(28)
+        lb_row.addWidget(lb_label)
+        lb_row.addWidget(self.lb_token_input, 1)
+        layout.addLayout(lb_row)
+
         # Hotkeys
         hotkey_hdr = QHBoxLayout()
         key_ico = QLabel(self)
@@ -270,10 +336,44 @@ class SettingsDialog(QDialog):
         toast = str(self.settings.value(SETTINGS_TOAST_ENABLED, "true")).lower() in ("true", "1", "yes")
         self.chk_toast.setChecked(toast)
 
+        saved_device = str(self.settings.value(SETTINGS_AUDIO_DEVICE, ""))
+        if saved_device:
+            idx = self.device_combo.findText(saved_device)
+            if idx >= 0:
+                self.device_combo.setCurrentIndex(idx)
+
+        saved_quality = str(self.settings.value(SETTINGS_AUDIO_QUALITY, "studio"))
+        qual_idx = self.quality_combo.findData(saved_quality)
+        if qual_idx >= 0:
+            self.quality_combo.setCurrentIndex(qual_idx)
+
+        cache_en = str(self.settings.value(SETTINGS_CACHE_ENABLED, "true")).lower() in ("true", "1", "yes")
+        self.chk_cache.setChecked(cache_en)
+
+        saved_token = str(self.settings.value(SETTINGS_LISTENBRAINZ_TOKEN, ""))
+        self.lb_token_input.setText(saved_token)
+
         for key, default_val in DEFAULT_HOTKEYS.items():
             val = str(self.settings.value(f"{SETTINGS_HOTKEYS}/{key}", default_val))
             if key in self.hotkey_inputs:
                 self.hotkey_inputs[key].setText(val)
+
+    def _on_device_selected(self, device_name: str) -> None:
+        self.settings.setValue(SETTINGS_AUDIO_DEVICE, device_name)
+        self.device_changed.emit(device_name)
+
+    def _on_quality_selected(self, index: int) -> None:
+        mode = self.quality_combo.currentData() or "studio"
+        self.settings.setValue(SETTINGS_AUDIO_QUALITY, mode)
+        self.quality_changed.emit(mode)
+
+    def _on_cache_toggled(self, checked: bool) -> None:
+        self.settings.setValue(SETTINGS_CACHE_ENABLED, checked)
+        self.cache_toggled.emit(checked)
+
+    def _on_clear_cache(self) -> None:
+        self.cache_cleared.emit()
+        self.btn_clear_cache.setText("Cleared ✓")
 
     def _on_opacity_changed(self, value: int) -> None:
         self.opacity_val_lbl.setText(f"{value}%")
@@ -328,6 +428,9 @@ class SettingsDialog(QDialog):
             chord = inp.text().strip() or DEFAULT_HOTKEYS.get(key, "")
             hotkeys[key] = chord
             self.settings.setValue(f"{SETTINGS_HOTKEYS}/{key}", chord)
+        token = self.lb_token_input.text().strip()
+        self.settings.setValue(SETTINGS_LISTENBRAINZ_TOKEN, token)
+        self.listenbrainz_token_changed.emit(token)
         self.settings.sync()
         self.hotkeys_changed.emit(hotkeys)
         self.accept()

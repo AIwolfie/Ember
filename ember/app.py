@@ -10,6 +10,7 @@ from PyQt6.QtCore import QSettings, QStandardPaths, QTimer
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication
 
+from .cache import AudioDiskCache
 from .catalog import CatalogSource
 from .config import (
     APP_NAME,
@@ -17,16 +18,22 @@ from .config import (
     DEFAULT_VOLUME,
     ORG_NAME,
     Palette,
+    SETTINGS_AUDIO_DEVICE,
+    SETTINGS_AUDIO_QUALITY,
     SETTINGS_AUTO_QUEUE,
+    SETTINGS_CACHE_ENABLED,
     SETTINGS_EXPANDED,
+    SETTINGS_LISTENBRAINZ_TOKEN,
     SETTINGS_NORMALIZE_VOLUME,
     SETTINGS_POS_X,
     SETTINGS_POS_Y,
     SETTINGS_THEME,
+    SETTINGS_VIEW_MODE,
     SETTINGS_VOLUME,
 )
 from .panel import FloatingPanel
 from .player import PlaybackCore
+from .scrobbler import ScrobbleEngine
 from .storage import DB_FILENAME, EmberStorage
 from .stream import StreamResolver
 from .smtc import WindowsMediaControls
@@ -140,8 +147,17 @@ def _restore_session(panel: FloatingPanel, core: PlaybackCore, settings: QSettin
     panel.endless.setChecked(endless)
     panel.endless.blockSignals(False)
 
-    if _as_bool(settings.value(SETTINGS_EXPANDED), False):
+    saved_mode = str(settings.value(SETTINGS_VIEW_MODE, "expanded" if _as_bool(settings.value(SETTINGS_EXPANDED), False) else "ribbon"))
+    if saved_mode == "pill":
+        panel.to_pill()
+    elif saved_mode == "expanded":
         panel.expand()
+    else:
+        panel.to_ribbon()
+
+    saved_device = str(settings.value(SETTINGS_AUDIO_DEVICE, ""))
+    if saved_device:
+        core.set_audio_device(saved_device)
 
 
 def _persist(panel: FloatingPanel, core: PlaybackCore, settings: QSettings) -> None:
@@ -149,10 +165,12 @@ def _persist(panel: FloatingPanel, core: PlaybackCore, settings: QSettings) -> N
     x, y = panel.current_position()
     settings.setValue(SETTINGS_POS_X, x)
     settings.setValue(SETTINGS_POS_Y, y)
+    settings.setValue(SETTINGS_VIEW_MODE, panel.view_mode)
     settings.setValue(SETTINGS_EXPANDED, panel.expanded)
     settings.setValue(SETTINGS_VOLUME, core.volume())
     settings.setValue(SETTINGS_AUTO_QUEUE, core.auto_queue)
     settings.setValue(SETTINGS_NORMALIZE_VOLUME, core.normalize_volume)
+    settings.setValue(SETTINGS_AUDIO_DEVICE, core.current_audio_device_name())
     settings.setValue(SETTINGS_THEME, Palette.current_theme)
     settings.sync()
 
@@ -212,11 +230,23 @@ def main() -> int:
     settings = QSettings(ORG_NAME, APP_NAME)
     storage = EmberStorage(data_dir / DB_FILENAME)
 
+    cache_enabled = _as_bool(settings.value(SETTINGS_CACHE_ENABLED), True)
+    disk_cache = AudioDiskCache(cache_dir=data_dir / "cache" / "tracks", enabled=cache_enabled)
+
     catalog = CatalogSource()
-    resolver = StreamResolver()
-    core = PlaybackCore(catalog, resolver)
+    resolver = StreamResolver(disk_cache=disk_cache)
+    saved_quality = str(settings.value(SETTINGS_AUDIO_QUALITY, "studio"))
+    resolver.set_quality_mode(saved_quality)
+
+    core = PlaybackCore(catalog, resolver, disk_cache=disk_cache)
     panel = FloatingPanel(core, storage, settings)
     tray = TrayPresence()
+
+    # Scrobble Engine (ListenBrainz / Last.fm)
+    lb_token = str(settings.value(SETTINGS_LISTENBRAINZ_TOKEN, ""))
+    scrobbler = ScrobbleEngine(listenbrainz_token=lb_token, parent=panel)
+    core.song_changed.connect(lambda s: scrobbler.on_song_changed(s, core._generation))
+    core.progress_changed.connect(lambda pos: scrobbler.on_progress(pos, core.player.duration()))
 
     _restore_session(panel, core, settings)
     _wire_tray(tray, panel, core, app)

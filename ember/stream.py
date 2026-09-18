@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yt_dlp
 
+from .cache import AudioDiskCache
 from .config import STREAM_CACHE_TTL_S, YTDLP_MAX_AGE_DAYS
 from .models import Song
 
@@ -150,12 +151,11 @@ class StreamCache:
             return len(self._entries)
 
 
+FORMAT_STANDARD = "bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/bestaudio/best"
+FORMAT_STUDIO = "bestaudio[acodec=flac]/bestaudio[format_id=251]/bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best"
+
 BASE_OPTIONS: Dict[str, Any] = {
-    # M4A first. Windows Media Foundation — the backend QMediaPlayer uses on
-    # Windows — cannot demux WebM/Opus past the opening cluster, which is what
-    # cuts playback off around the two-minute mark. AAC in an MP4 container it
-    # handles cleanly.
-    "format": "bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/bestaudio/best",
+    "format": FORMAT_STANDARD,
     "quiet": True,
     "no_warnings": True,
     "noplaylist": True,
@@ -180,12 +180,22 @@ class StreamResolver:
         self,
         overrides: Optional[Dict[str, Any]] = None,
         cache: Optional[StreamCache] = None,
+        disk_cache: Optional[AudioDiskCache] = None,
     ) -> None:
         self.options = dict(BASE_OPTIONS)
         if overrides:
             self.options.update(overrides)
         self.cache = cache if cache is not None else StreamCache()
+        self.disk_cache = disk_cache
         check_ytdlp_freshness()
+
+    def set_quality_mode(self, mode: str) -> None:
+        """Toggle between 'studio' (Opus 48kHz / FLAC priority) and 'standard' (AAC / M4A)."""
+        if mode == "studio":
+            self.options["format"] = FORMAT_STUDIO
+        else:
+            self.options["format"] = FORMAT_STANDARD
+        log.info("Stream resolver audio quality set to %s (%s)", mode, self.options["format"])
 
     def _probe(self, target: str, max_attempts: int = 3) -> Dict[str, Any]:
         """Extract info from yt-dlp with retries and exponential backoff."""
@@ -232,6 +242,14 @@ class StreamResolver:
         if not video_id:
             return None, "no track id", True
 
+        # 1. Instant disk cache lookup (0ms load)
+        if self.disk_cache and self.disk_cache.has(video_id):
+            local_path = self.disk_cache.get_path(video_id)
+            if local_path and local_path.is_file():
+                log.info("Audio disk cache hit for %s (0ms load)", video_id)
+                return local_path.as_uri(), "", False
+
+        # 2. In-memory URL cache lookup
         cached = self.cache.get(video_id)
         if cached is not None:
             log.debug("stream cache hit for %s", video_id)
