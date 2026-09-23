@@ -153,3 +153,12 @@ def moon_icon(active: bool = False) -> QIcon:
 
 def gauge_icon(color: Optional[str] = None) -> QIcon:
     return get_icon("fa6s.gauge-high", color=color or Palette.muted, scale_factor=0.85)
+
+
+def download_icon(color: Optional[str] = None) -> QIcon:
+    return get_icon(
+        "fa6s.arrow-down-to-bracket",
+        color=color or Palette.muted,
+        color_active=Palette.amber_hi,
+        scale_factor=0.85,
+    )

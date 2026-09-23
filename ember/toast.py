@@ -33,7 +33,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .config import Palette
-from .icons import music_icon
+from .icons import download_icon, music_icon
 from .models import Song
 from .theme import toast_stylesheet
 from .utils import elide_into
@@ -132,14 +132,14 @@ class NowPlayingToast(QWidget):
         words.setContentsMargins(0, 0, 0, 0)
         words.setSpacing(1)
 
-        badge = QLabel("NOW PLAYING", self.shell)
-        badge.setObjectName("ToastBadge")
+        self.badge = QLabel("NOW PLAYING", self.shell)
+        self.badge.setObjectName("ToastBadge")
         self.title = QLabel("Track Title", self.shell)
         self.title.setObjectName("ToastTitle")
         self.artist = QLabel("Artist", self.shell)
         self.artist.setObjectName("ToastArtist")
 
-        words.addWidget(badge)
+        words.addWidget(self.badge)
         words.addWidget(self.title)
         words.addWidget(self.artist)
         words.addStretch(1)
@@ -150,6 +150,7 @@ class NowPlayingToast(QWidget):
         if not song:
             return
 
+        self.badge.setText("NOW PLAYING")
         elide_into(self.title, song.title, 195)
         elide_into(self.artist, song.byline, 195)
 
@@ -158,6 +159,37 @@ class NowPlayingToast(QWidget):
         else:
             self.art_label.clear()
             self.art_label.setPixmap(music_icon(Palette.amber_hi).pixmap(22, 22))
+            self.art_label.setStyleSheet(
+                f"background: {Palette.raised}; border: 1px solid {Palette.line}; border-radius: 8px;"
+            )
+
+        self._position_toast()
+        self.show()
+
+        self._anim.stop()
+        self._anim.setStartValue(self._opacity.opacity())
+        self._anim.setEndValue(1.0)
+        self._anim.start()
+
+        self._hide_timer.start(TOAST_DISPLAY_MS)
+
+    def show_message(
+        self,
+        badge: str,
+        title: str,
+        subtitle: str,
+        pixmap: Optional[QPixmap] = None,
+    ) -> None:
+        """Display toast with custom badge and message."""
+        self.badge.setText(badge.upper())
+        elide_into(self.title, title, 195)
+        elide_into(self.artist, subtitle, 195)
+
+        if pixmap and not pixmap.isNull():
+            self.art_label.setPixmap(_rounded_thumb(pixmap, 44))
+        else:
+            self.art_label.clear()
+            self.art_label.setPixmap(download_icon(Palette.amber_hi).pixmap(22, 22))
             self.art_label.setStyleSheet(
                 f"background: {Palette.raised}; border: 1px solid {Palette.line}; border-radius: 8px;"
             )

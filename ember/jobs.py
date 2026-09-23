@@ -370,3 +370,31 @@ class CacheTrackJob(CancellableJob):
                         self.disk_cache.store(self.video_id, bytes(chunks), ext=ext)
         except Exception as exc:  # noqa: BLE001
             log.debug("Background track caching failed for %s: %s", self.video_id, exc)
+
+
+# ----------------------------------------------------------- track exporter
+class ExportTrackSignals(_Signals):
+    ready = pyqtSignal(object, str)  # (Path, display_str)
+    failed = pyqtSignal(str, str)  # (song_title, error_message)
+
+
+class ExportTrackJob(CancellableJob):
+    """Off-thread job that tags and exports a Song to the offline library."""
+
+    def __init__(self, exporter: Any, song: Song) -> None:
+        super().__init__()
+        self.exporter = exporter
+        self.song = song
+        self.signals = ExportTrackSignals()
+
+    def run(self) -> None:
+        if self.is_cancelled:
+            return
+        try:
+            dest_path = self.exporter.export_song(self.song)
+            if not self.is_cancelled:
+                self.signals.ready.emit(dest_path, f"{self.song.artist} - {self.song.title}")
+        except Exception as exc:
+            if not self.is_cancelled:
+                log.warning("Audio export failed for %s: %s", self.song.title, exc)
+                self.signals.failed.emit(self.song.title, str(exc))

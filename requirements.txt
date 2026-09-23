@@ -11,4 +11,5 @@ winrt-Windows.Media>=2.0.0; sys_platform == 'win32'
 winrt-Windows.Storage.Streams>=2.0.0; sys_platform == 'win32'
 winrt-Windows.Foundation>=2.0.0; sys_platform == 'win32'
 winrt-Windows.Media.Playback>=2.0.0; sys_platform == 'win32'
+mutagen>=1.47.0,<2.0.0
 pytest>=8.0.0,<10.0.0

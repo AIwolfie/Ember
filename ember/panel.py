@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import html
 import logging
+import math
 import sys
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -66,6 +67,7 @@ from .icons import (
     backward_icon,
     close_icon,
     collapse_icon,
+    download_icon,
     expand_icon,
     fire_icon,
     forward_icon,
@@ -83,7 +85,8 @@ from .icons import (
     settings_icon,
     shuffle_icon,
 )
-from .jobs import ArtJob, LyricsJob, PlaylistImportJob, SearchJob
+from .jobs import ArtJob, ExportTrackJob, LyricsJob, PlaylistImportJob, SearchJob
+from .exporter import AudioExporter
 from .importer import is_playlist_url
 from .lyrics import find_active_index, parse_lrc
 from .models import Song
@@ -141,7 +144,7 @@ class Hairline(QFrame):
 
 
 class SeekBar(QWidget):
-    """Horizontal progress bar that supports smooth scrubbing and direct jumping."""
+    """Dynamic acoustic waveform seekbar with interactive scrubbing and live playback visualizer."""
 
     scrubbed = pyqtSignal(int)
     released = pyqtSignal(int)
@@ -149,12 +152,25 @@ class SeekBar(QWidget):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setObjectName("Seek")
-        self.setFixedHeight(18)
+        self.setFixedHeight(22)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMouseTracking(True)
         self._minimum = 0
         self._maximum = 0
         self._value = 0
         self._scrubbing = False
+        self._hover_x: Optional[float] = None
+        self._is_playing = False
+        self._anim_phase = 0.0
+        self._seed_key = ""
+
+        # Precompute default waveform envelope (64 bars)
+        self._bars: List[float] = self._generate_waveform(64, seed="")
+
+        # 25 FPS live pulse timer
+        self._timer = QTimer(self)
+        self._timer.setInterval(40)
+        self._timer.timeout.connect(self._on_tick)
 
     def setRange(self, minimum: int, maximum: int) -> None:  # noqa: N802
         self._minimum = max(0, int(minimum))
@@ -171,10 +187,52 @@ class SeekBar(QWidget):
     def value(self) -> int:
         return self._value
 
+    def set_track_seed(self, seed: str) -> None:
+        """Regenerate waveform bars pseudo-randomly based on track ID."""
+        if seed != self._seed_key:
+            self._seed_key = seed
+            self._bars = self._generate_waveform(64, seed=seed)
+            self.update()
+
+    def set_playing(self, playing: bool) -> None:
+        """Start/stop live visualizer pulse animation."""
+        self._is_playing = bool(playing)
+        if self._is_playing and not self._timer.isActive():
+            self._timer.start()
+        elif not self._is_playing and self._timer.isActive():
+            self._timer.stop()
+            self.update()
+
+    def _on_tick(self) -> None:
+        self._anim_phase = (self._anim_phase + 0.15) % (2.0 * math.pi)
+        self.update()
+
+    def _generate_waveform(self, count: int, seed: str = "") -> List[float]:
+        """Generate smooth natural audio envelope bars."""
+        base_hash = sum(ord(c) for c in seed) if seed else 42
+        bars: List[float] = []
+        for i in range(count):
+            t = i / max(1, count - 1)
+            # Harmonic combinations mimicking musical audio spectrum
+            h1 = math.sin(t * 7.5 + base_hash * 0.1) * 0.22
+            h2 = math.cos(t * 15.0 + base_hash * 0.2) * 0.14
+            h3 = math.sin(t * math.pi) * 0.42  # Arch envelope higher in the middle
+            val = 0.26 + h3 + h1 + h2
+            noise = ((math.sin((i * 13.37 + base_hash) % 100)) * 0.5 + 0.5) * 0.18
+            bars.append(max(0.18, min(0.96, val + noise)))
+        return bars
+
     def _value_at(self, x: int) -> int:
         span = max(1, self.width())
         ratio = min(1.0, max(0.0, x / span))
         return int(self._minimum + ratio * (self._maximum - self._minimum))
+
+    def enterEvent(self, event) -> None:  # noqa: N802
+        self.update()
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        self._hover_x = None
+        self.update()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton:
@@ -184,10 +242,15 @@ class SeekBar(QWidget):
             self.scrubbed.emit(val)
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        self._hover_x = float(event.position().x())
         if self._scrubbing:
             val = self._value_at(int(event.position().x()))
             self.setValue(val)
             self.scrubbed.emit(val)
+        else:
+            val = self._value_at(int(event.position().x()))
+            self.setToolTip(clock(val))
+        self.update()
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton and self._scrubbing:
@@ -198,34 +261,60 @@ class SeekBar(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-        y = (self.height() - 5) / 2.0
         w = float(self.width())
-        track_rect = QRectF(0, y, w, 5.0)
-
-        # Background track
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(Palette.raised))
-        painter.drawRoundedRect(track_rect, 2.5, 2.5)
-
-        # Active progress fill
+        h = float(self.height())
         span = self._maximum - self._minimum
-        ratio = (self._value - self._minimum) / span if span > 0 else 0.0
-        fill_w = max(0.0, w * ratio)
-        if fill_w > 0:
-            fill_rect = QRectF(0, y, fill_w, 5.0)
-            grad = QLinearGradient(0, 0, w, 0)
-            grad.setColorAt(0.0, QColor(Palette.amber_lo))
-            grad.setColorAt(1.0, QColor(Palette.amber_hi))
-            painter.setBrush(grad)
-            painter.drawRoundedRect(fill_rect, 2.5, 2.5)
+        progress_ratio = (self._value - self._minimum) / span if span > 0 else 0.0
+        playhead_x = max(0.0, min(w, w * progress_ratio))
 
-        # Handle knob
-        handle_x = min(w - 10, max(0.0, fill_w - 5.0))
-        handle_rect = QRectF(handle_x, y - 2.5, 10.0, 10.0)
-        painter.setBrush(QColor(Palette.text))
-        painter.setPen(QPen(QColor(Palette.amber), 2.0))
-        painter.drawEllipse(handle_rect)
+        num_bars = len(self._bars)
+        if num_bars == 0 or w <= 0:
+            painter.end()
+            return
+
+        pitch = w / float(num_bars)
+        bar_w = max(2.0, pitch - 2.0)
+
+        # Draw amplitude bars
+        for i, base_amp in enumerate(self._bars):
+            bar_center_x = (i + 0.5) * pitch
+            bar_x = bar_center_x - (bar_w / 2.0)
+
+            # Live ripple pulse when playing
+            if self._is_playing:
+                pulse = math.sin(self._anim_phase + (i * 0.28)) * 0.12
+                amp = max(0.15, min(1.0, base_amp + pulse))
+            else:
+                amp = base_amp
+
+            bar_h = max(3.0, (h - 4.0) * amp)
+            bar_y = (h - bar_h) / 2.0
+            rect = QRectF(bar_x, bar_y, bar_w, bar_h)
+            radius = bar_w / 2.0
+
+            painter.setPen(Qt.PenStyle.NoPen)
+            if bar_center_x <= playhead_x:
+                # Played bar: theme amber glowing gradient
+                grad = QLinearGradient(0, bar_y + bar_h, 0, bar_y)
+                grad.setColorAt(0.0, QColor(Palette.amber_lo))
+                grad.setColorAt(1.0, QColor(Palette.amber_hi))
+                painter.setBrush(grad)
+            else:
+                # Unplayed bar: dimmed or illuminated under hover
+                if self._hover_x is not None and bar_center_x <= self._hover_x:
+                    painter.setBrush(QColor(Palette.amber_lo).darker(160))
+                else:
+                    painter.setBrush(QColor(Palette.raised))
+
+            painter.drawRoundedRect(rect, radius, radius)
+
+        # Draw glowing playhead cursor
+        cursor_x = max(0.0, min(w - 3.0, playhead_x - 1.5))
+        cursor_rect = QRectF(cursor_x, 1.0, 3.0, h - 2.0)
+        painter.setBrush(QColor(Palette.amber_hi))
+        painter.drawRoundedRect(cursor_rect, 1.5, 1.5)
         painter.end()
+
 
 
 class VinylDisc(QWidget):
@@ -535,6 +624,20 @@ class QueueRow(QFrame):
         ):
             self.picked.emit(self.index)
 
+    def contextMenuEvent(self, event) -> None:  # noqa: N802
+        menu = QMenu(self)
+        play_act = menu.addAction("Play Now")
+        play_act.triggered.connect(lambda: self.picked.emit(self.index))
+        fav_label = "Remove from Favorites" if self.is_fav else "Add to Favorites"
+        fav_act = menu.addAction(fav_label)
+        fav_act.triggered.connect(lambda: self.fav_toggled.emit(self.index))
+        menu.addSeparator()
+        save_act = menu.addAction("Save to Library (Offline)")
+        panel = self.window()
+        if hasattr(panel, "export_track"):
+            save_act.triggered.connect(lambda: panel.export_track(self.song))
+        menu.exec(event.globalPos())
+
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -591,10 +694,16 @@ class FloatingPanel(QWidget):
         self._current_lyrics_vid: Optional[str] = None
         self._lyrics_loaded_for: Optional[str] = None
         self._sleep_seconds_remaining: int = 0
+        self._sleep_end_of_track: bool = False
         self._sleep_fading: bool = False
         self._sleep_timer = QTimer(self)
         self._sleep_timer.setInterval(1000)
         self._sleep_timer.timeout.connect(self._on_sleep_tick)
+
+        self.exporter = AudioExporter(
+            cache=getattr(self.core, "disk_cache", None),
+            resolver=self.core.resolver,
+        )
 
         self.setWindowTitle(APP_NAME)
         self.setWindowFlags(
@@ -914,6 +1023,17 @@ class FloatingPanel(QWidget):
         self.panel_repeat.clicked.connect(self.core.cycle_repeat_mode)
         transport.addWidget(self.panel_repeat)
 
+        self.panel_export = QPushButton(card)
+        self.panel_export.setObjectName("ModeToggle")
+        self.panel_export.setFixedSize(28, 28)
+        self.panel_export.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.panel_export.setToolTip("Export track to offline library")
+        self.panel_export.setIcon(download_icon())
+        self.panel_export.setIconSize(QSize(14, 14))
+        self.panel_export.clicked.connect(self._export_current_song)
+        transport.addWidget(self.panel_export)
+
+
         column.addLayout(transport)
         return card
 
@@ -1142,10 +1262,14 @@ class FloatingPanel(QWidget):
         self.panel_repeat.setIcon(repeat_icon(self.core.repeat_mode))
         self.panel_repeat.setIconSize(QSize(14, 14))
 
+        if hasattr(self, "panel_export"):
+            self.panel_export.setIcon(download_icon())
+            self.panel_export.setIconSize(QSize(14, 14))
+
         self.tab_lyrics.setIcon(lyrics_icon())
         self.tab_lyrics.setIconSize(QSize(12, 12))
 
-        self.sleep_btn.setIcon(moon_icon(self._sleep_seconds_remaining > 0))
+        self.sleep_btn.setIcon(moon_icon(self._sleep_seconds_remaining > 0 or self._sleep_end_of_track))
         self.sleep_btn.setIconSize(QSize(12, 12))
 
         self.ribbon_open.setIcon(expand_icon())
@@ -1581,6 +1705,7 @@ class FloatingPanel(QWidget):
 
         self.seek.setRange(0, 0)
         self.seek.setValue(0)
+        self.seek.set_track_seed(song.video_id)
         self.elapsed.setText("0:00")
         self.total.setText("0:00")
 
@@ -1629,6 +1754,7 @@ class FloatingPanel(QWidget):
         self.pill_play.setIcon(pause_icon() if playing else play_icon())
         self.pill_equaliser.set_on(playing)
         self.disc.set_spinning(playing)
+        self.seek.set_playing(playing)
         self._set_status("playing" if playing else "paused")
 
     # ------------------------------------------------------------- lyrics slots
@@ -1729,14 +1855,18 @@ class FloatingPanel(QWidget):
             ("30 minutes", 30),
             ("45 minutes", 45),
             ("60 minutes", 60),
+            ("End of Track", -1),
         ]
         for label, minutes in presets:
             action = menu.addAction(label)
-            action.triggered.connect(lambda checked, m=minutes: self._start_sleep_timer(m))
+            if minutes == -1:
+                action.triggered.connect(lambda checked: self._start_sleep_end_of_track())
+            else:
+                action.triggered.connect(lambda checked, m=minutes: self._start_sleep_timer(m))
 
         menu.addSeparator()
         cancel_act = menu.addAction("Turn Off Timer")
-        cancel_act.setEnabled(self._sleep_seconds_remaining > 0)
+        cancel_act.setEnabled(self._sleep_seconds_remaining > 0 or self._sleep_end_of_track)
         cancel_act.triggered.connect(self._cancel_sleep_timer)
 
         btn_pos = self.sleep_btn.mapToGlobal(QPoint(0, -menu.sizeHint().height() - 4))
@@ -1744,6 +1874,7 @@ class FloatingPanel(QWidget):
 
     def _start_sleep_timer(self, minutes: int) -> None:
         self.core.cancel_fade()
+        self._sleep_end_of_track = False
         self._sleep_seconds_remaining = minutes * 60
         self._sleep_fading = False
         self._sleep_timer.start()
@@ -1752,7 +1883,29 @@ class FloatingPanel(QWidget):
         self.sleep_btn.setIcon(moon_icon(True))
         self._set_status(f"sleep timer: {minutes}m")
 
+    def _start_sleep_end_of_track(self) -> None:
+        self.core.cancel_fade()
+        self._sleep_end_of_track = True
+        self._sleep_seconds_remaining = 0
+        self._sleep_fading = False
+        self._sleep_timer.start()
+        self.sleep_btn.setChecked(True)
+        self.sleep_btn.setText(" End")
+        self.sleep_btn.setIcon(moon_icon(True))
+        self._set_status("sleep timer: end of track")
+
     def _on_sleep_tick(self) -> None:
+        if self._sleep_end_of_track:
+            pos = self.core.position
+            dur = self.core.duration
+            remaining_ms = dur - pos if dur > pos else 0
+            if dur > 0 and remaining_ms <= 15000 and not self._sleep_fading:
+                self._sleep_fading = True
+                self.core.fade_out_and_pause(max(3000, remaining_ms), on_done=self._on_sleep_finished)
+            elif dur > 0 and remaining_ms <= 1000:
+                self._on_sleep_finished()
+            return
+
         if self._sleep_seconds_remaining <= 0:
             self._cancel_sleep_timer()
             return
@@ -1766,10 +1919,11 @@ class FloatingPanel(QWidget):
         else:
             self.sleep_btn.setText(f" {secs}s")
 
-        # In last 15 seconds, initiate volume attenuation fade-out
-        if self._sleep_seconds_remaining <= 15 and not self._sleep_fading:
+        # In last 60 seconds, initiate volume attenuation cosine fade-out
+        if self._sleep_seconds_remaining <= 60 and not self._sleep_fading:
             self._sleep_fading = True
-            self.core.fade_out_and_pause(15000, on_done=self._on_sleep_finished)
+            fade_ms = max(5000, self._sleep_seconds_remaining * 1000)
+            self.core.fade_out_and_pause(fade_ms, on_done=self._on_sleep_finished)
 
         if self._sleep_seconds_remaining <= 0:
             self._cancel_sleep_timer()
@@ -1777,6 +1931,7 @@ class FloatingPanel(QWidget):
     def _cancel_sleep_timer(self) -> None:
         self._sleep_timer.stop()
         self._sleep_seconds_remaining = 0
+        self._sleep_end_of_track = False
         if self._sleep_fading:
             self.core.cancel_fade()
             self._sleep_fading = False
@@ -1788,11 +1943,38 @@ class FloatingPanel(QWidget):
     def _on_sleep_finished(self) -> None:
         self._sleep_timer.stop()
         self._sleep_seconds_remaining = 0
+        self._sleep_end_of_track = False
         self._sleep_fading = False
         self.sleep_btn.setChecked(False)
         self.sleep_btn.setText(" Sleep")
         self.sleep_btn.setIcon(moon_icon(False))
         self._set_status("goodnight 🌙")
+
+    # ----------------------------------------------------------- track exporter
+    def _export_current_song(self) -> None:
+        song = self.core.current
+        if not song:
+            self._set_status("no song playing to export")
+            return
+        self.export_track(song)
+
+    def export_track(self, song: Song) -> None:
+        if not song:
+            return
+        self._set_status(f"exporting {song.title}...")
+        job = ExportTrackJob(self.exporter, song)
+        job.signals.ready.connect(self._on_export_ready)
+        job.signals.failed.connect(self._on_export_failed)
+        self.core.playback_pool.start(job)
+
+    def _on_export_ready(self, dest_path: Any, title: str) -> None:
+        self._set_status(f"saved to library: {title}")
+        if hasattr(self, "toast"):
+            self.toast.show_message("Saved to Library", title, str(dest_path))
+
+    def _on_export_failed(self, title: str, error: str) -> None:
+        self._set_status(f"export failed: {error}")
+
 
     def _on_progress(self, position: int) -> None:
         if self._scrubbing:

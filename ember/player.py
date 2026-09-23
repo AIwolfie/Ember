@@ -13,6 +13,7 @@ playback starts the moment the stream is ready without waiting on recommendation
 from __future__ import annotations
 
 import logging
+import math
 import re
 from typing import Any, Callable, Iterable, List, Optional, Set
 
@@ -527,10 +528,10 @@ class PlaybackCore(QObject):
 
     def fade_out_and_pause(
         self,
-        duration_ms: int = 15000,
+        duration_ms: int = 60000,
         on_done: Optional[Callable[[], None]] = None,
     ) -> None:
-        """Smoothly attenuate volume to zero over duration_ms and pause playback."""
+        """Smoothly attenuate volume to zero over duration_ms using cosine easing, then pause."""
         if self._fade_timer is not None:
             self._fade_timer.stop()
             self._fade_timer.deleteLater()
@@ -542,18 +543,23 @@ class PlaybackCore(QObject):
             return
 
         self._pre_fade_volume = self._raw_volume
-        steps = max(10, duration_ms // 100)
-        interval = max(20, duration_ms // steps)
-        step_dec = self._raw_volume / steps
-        current_vol = float(self._raw_volume)
+        initial_vol = float(self._raw_volume)
+        interval_ms = 50
+        total_steps = max(10, duration_ms // interval_ms)
+        elapsed_steps = 0
 
         timer = QTimer(self)
         self._fade_timer = timer
 
         def _step_fade() -> None:
-            nonlocal current_vol
-            current_vol -= step_dec
-            if current_vol <= 0.5:
+            nonlocal elapsed_steps
+            elapsed_steps += 1
+            t = min(1.0, elapsed_steps / total_steps)
+            # Smooth cosine easing curve: factor moves gently from 1.0 down to 0.0
+            factor = 0.5 * (1.0 + math.cos(math.pi * t))
+            new_vol = initial_vol * factor
+
+            if t >= 1.0 or new_vol <= 0.5:
                 timer.stop()
                 timer.deleteLater()
                 self._fade_timer = None
@@ -565,10 +571,10 @@ class PlaybackCore(QObject):
                 if on_done:
                     on_done()
             else:
-                self.set_volume(int(current_vol))
+                self.set_volume(int(round(new_vol)))
 
         timer.timeout.connect(_step_fade)
-        timer.start(interval)
+        timer.start(interval_ms)
 
     def cancel_fade(self) -> None:
         """Cancel an ongoing sleep fade-out and restore original volume."""
