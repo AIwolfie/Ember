@@ -83,6 +83,53 @@ class EmberStorage:
                 conn.execute(
                     "CREATE INDEX IF NOT EXISTS idx_history_played ON history(played_at DESC);"
                 )
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS playlists (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        source_type TEXT DEFAULT 'custom',
+                        source_url TEXT DEFAULT '',
+                        created_at REAL NOT NULL
+                    );
+                    """
+                )
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS playlist_tracks (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        playlist_id INTEGER NOT NULL,
+                        video_id TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        artist TEXT NOT NULL,
+                        duration TEXT,
+                        artwork_url TEXT,
+                        position INTEGER NOT NULL,
+                        FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
+                    );
+                    """
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_playlist_tracks ON playlist_tracks(playlist_id, position);"
+                )
+
+                # Schema migrations for existing databases
+                pl_cols = {
+                    row["name"]
+                    for row in conn.execute("PRAGMA table_info(playlists);").fetchall()
+                }
+                if "source_type" not in pl_cols:
+                    conn.execute("ALTER TABLE playlists ADD COLUMN source_type TEXT DEFAULT 'custom';")
+                if "source_url" not in pl_cols:
+                    conn.execute("ALTER TABLE playlists ADD COLUMN source_url TEXT DEFAULT '';")
+
+                track_cols = {
+                    row["name"]
+                    for row in conn.execute("PRAGMA table_info(playlist_tracks);").fetchall()
+                }
+                if "position" not in track_cols and track_cols:
+                    conn.execute("ALTER TABLE playlist_tracks ADD COLUMN position INTEGER DEFAULT 0;")
+
                 conn.commit()
             log.info("Ember storage initialized at %s", self.db_path)
         except Exception as exc:
@@ -244,3 +291,158 @@ class EmberStorage:
             log.info("Playback history cleared")
         except Exception as exc:
             log.error("Failed to clear history: %s", exc)
+
+    # ---------------------------------------------------------------- playlists
+    def create_playlist(self, name: str, source_type: str = "custom", source_url: str = "") -> int:
+        """Create a new playlist and return its ID."""
+        clean_name = (name or "").strip() or "Untitled Playlist"
+        with self._connection() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO playlists (name, source_type, source_url, created_at)
+                VALUES (?, ?, ?, ?);
+                """,
+                (clean_name, source_type, source_url, time.time()),
+            )
+            conn.commit()
+            return int(cursor.lastrowid)
+
+    def delete_playlist(self, playlist_id: int) -> bool:
+        """Delete a playlist and all its contained tracks."""
+        with self._connection() as conn:
+            conn.execute("DELETE FROM playlist_tracks WHERE playlist_id = ?;", (playlist_id,))
+            cursor = conn.execute("DELETE FROM playlists WHERE id = ?;", (playlist_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def rename_playlist(self, playlist_id: int, new_name: str) -> bool:
+        """Rename an existing playlist."""
+        clean_name = (new_name or "").strip() or "Untitled Playlist"
+        with self._connection() as conn:
+            cursor = conn.execute(
+                "UPDATE playlists SET name = ? WHERE id = ?;",
+                (clean_name, playlist_id),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def get_playlists(self) -> List[Dict[str, Any]]:
+        """Return all playlists with track counts and metadata ordered by most recent."""
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT p.id, p.name, p.source_type, p.source_url, p.created_at,
+                       COUNT(t.rowid) as track_count
+                FROM playlists p
+                LEFT JOIN playlist_tracks t ON p.id = t.playlist_id
+                GROUP BY p.id
+                ORDER BY p.created_at DESC;
+                """
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_playlist(self, playlist_id: int) -> Optional[Dict[str, Any]]:
+        """Return a single playlist with metadata and track count, or None if not found."""
+        with self._connection() as conn:
+            row = conn.execute(
+                """
+                SELECT p.id, p.name, p.source_type, p.source_url, p.created_at,
+                       COUNT(t.rowid) as track_count
+                FROM playlists p
+                LEFT JOIN playlist_tracks t ON p.id = t.playlist_id
+                WHERE p.id = ?
+                GROUP BY p.id;
+                """,
+                (playlist_id,),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def get_playlist_tracks(self, playlist_id: int) -> List[Song]:
+        """Return all songs in a playlist ordered by their playlist position."""
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT video_id, title, artist, duration, artwork_url
+                FROM playlist_tracks
+                WHERE playlist_id = ?
+                ORDER BY position ASC;
+                """,
+                (playlist_id,),
+            ).fetchall()
+            return [
+                Song(
+                    video_id=r["video_id"],
+                    title=r["title"],
+                    artist=r["artist"],
+                    duration=r["duration"] or "",
+                    artwork_url=r["artwork_url"] or "",
+                )
+                for r in rows
+            ]
+
+    def add_tracks_to_playlist(self, playlist_id: int, songs: List[Song]) -> None:
+        """Append songs to a playlist preserving order and skipping duplicates."""
+        if not songs:
+            return
+        with self._connection() as conn:
+            max_pos_row = conn.execute(
+                "SELECT COALESCE(MAX(position), -1) as max_pos FROM playlist_tracks WHERE playlist_id = ?;",
+                (playlist_id,),
+            ).fetchone()
+            current_pos = max_pos_row["max_pos"] + 1
+
+            existing_vids = {
+                r["video_id"]
+                for r in conn.execute(
+                    "SELECT video_id FROM playlist_tracks WHERE playlist_id = ?;",
+                    (playlist_id,),
+                ).fetchall()
+            }
+
+            records = []
+            for s in songs:
+                if not s or not s.video_id or s.video_id in existing_vids:
+                    continue
+                existing_vids.add(s.video_id)
+                records.append(
+                    (
+                        playlist_id,
+                        s.video_id,
+                        s.title,
+                        s.artist,
+                        s.duration or "",
+                        s.artwork_url or "",
+                        current_pos,
+                    )
+                )
+                current_pos += 1
+
+            if records:
+                conn.executemany(
+                    """
+                    INSERT INTO playlist_tracks
+                    (playlist_id, video_id, title, artist, duration, artwork_url, position)
+                    VALUES (?, ?, ?, ?, ?, ?, ?);
+                    """,
+                    records,
+                )
+                conn.commit()
+
+    def remove_track_from_playlist(self, playlist_id: int, video_id: str) -> None:
+        """Remove a track from a playlist and re-compact track positions."""
+        with self._connection() as conn:
+            conn.execute(
+                "DELETE FROM playlist_tracks WHERE playlist_id = ? AND video_id = ?;",
+                (playlist_id, video_id),
+            )
+            rows = conn.execute(
+                "SELECT rowid FROM playlist_tracks WHERE playlist_id = ? ORDER BY position ASC;",
+                (playlist_id,),
+            ).fetchall()
+            for idx, r in enumerate(rows):
+                conn.execute(
+                    "UPDATE playlist_tracks SET position = ? WHERE rowid = ?;",
+                    (idx, r[0]),
+                )
+            conn.commit()
+

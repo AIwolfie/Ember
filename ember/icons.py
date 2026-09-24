@@ -162,3 +162,13 @@ def download_icon(color: Optional[str] = None) -> QIcon:
         color_active=Palette.amber_hi,
         scale_factor=0.85,
     )
+
+
+def playlist_icon(color: Optional[str] = None) -> QIcon:
+    return get_icon(
+        "fa6s.rectangle-list",
+        color=color or Palette.muted,
+        color_active=Palette.amber_hi,
+        scale_factor=0.85,
+    )
+

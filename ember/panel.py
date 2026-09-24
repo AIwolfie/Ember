@@ -27,9 +27,11 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMenu,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -79,6 +81,7 @@ from .icons import (
     music_icon,
     pause_icon,
     play_icon,
+    playlist_icon,
     queue_icon,
     repeat_icon,
     search_icon,
@@ -632,8 +635,26 @@ class QueueRow(QFrame):
         fav_act = menu.addAction(fav_label)
         fav_act.triggered.connect(lambda: self.fav_toggled.emit(self.index))
         menu.addSeparator()
-        save_act = menu.addAction("Save to Library (Offline)")
+
         panel = self.window()
+        if hasattr(panel, "_current_playlist_id") and panel._current_playlist_id is not None:
+            rem_act = menu.addAction("Remove from this Playlist")
+            rem_act.triggered.connect(lambda: panel._remove_track_from_current_playlist(self.song.video_id))
+            menu.addSeparator()
+
+        if hasattr(panel, "storage") and panel.storage:
+            playlists = panel.storage.get_playlists()
+            pl_menu = menu.addMenu("Add to Playlist...")
+            for pl in playlists:
+                pl_act = pl_menu.addAction(f"{pl['name']} ({pl['track_count']})")
+                pl_act.triggered.connect(
+                    lambda checked, pid=pl["id"], pname=pl["name"]: panel._add_song_to_playlist(pid, self.song, pname)
+                )
+            new_pl_act = pl_menu.addAction("+ New Playlist...")
+            new_pl_act.triggered.connect(lambda checked: panel._create_playlist_with_song(self.song))
+            menu.addSeparator()
+
+        save_act = menu.addAction("Save to Library (Offline)")
         if hasattr(panel, "export_track"):
             save_act.triggered.connect(lambda: panel.export_track(self.song))
         menu.exec(event.globalPos())
@@ -655,6 +676,112 @@ class QueueRow(QFrame):
             painter.setBrush(QColor(244, 233, 221, 14))
             painter.drawRoundedRect(QRectF(0, 1, self.width(), self.height() - 2), 10, 10)
         painter.end()
+
+
+class PlaylistCard(QFrame):
+    """One playlist card in the Playlists overview list."""
+
+    picked = pyqtSignal(int)
+    play_requested = pyqtSignal(int)
+    queue_requested = pyqtSignal(int)
+    delete_requested = pyqtSignal(int)
+
+    def __init__(
+        self,
+        playlist_id: int,
+        name: str,
+        track_count: int,
+        source_type: str = "custom",
+        parent: Optional[QWidget] = None,
+    ) -> None:
+        super().__init__(parent)
+        self.playlist_id = playlist_id
+        self.name = name
+        self.track_count = track_count
+        self.source_type = source_type
+        self.setFixedHeight(48)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._hover = False
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 4, 8, 4)
+        layout.setSpacing(10)
+
+        # Icon badge
+        icon_lbl = QLabel(self)
+        icon_lbl.setPixmap(playlist_icon(Palette.amber_hi).pixmap(20, 20))
+        icon_lbl.setFixedSize(24, 24)
+        layout.addWidget(icon_lbl)
+
+        # Name and count
+        col = QVBoxLayout()
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(1)
+
+        self.title_lbl = QLabel(name, self)
+        self.title_lbl.setObjectName("RibbonTitle")
+        self.title_lbl.setStyleSheet(f"color: {Palette.text}; font-weight: 600; font-size: 13px;")
+
+        badge_text = f"{pretty_count(track_count, 'track')} • {source_type.capitalize()}"
+        self.sub_lbl = QLabel(badge_text, self)
+        self.sub_lbl.setObjectName("Hint")
+        self.sub_lbl.setStyleSheet(f"color: {Palette.muted}; font-size: 11px;")
+
+        col.addWidget(self.title_lbl)
+        col.addWidget(self.sub_lbl)
+        layout.addLayout(col, 1)
+
+        # Actions: Play All, Add to Queue, Delete
+        self.play_btn = QPushButton(self)
+        self.play_btn.setObjectName("Ghost")
+        self.play_btn.setFixedSize(26, 26)
+        self.play_btn.setIcon(play_icon(Palette.amber))
+        self.play_btn.setIconSize(QSize(13, 13))
+        self.play_btn.setToolTip("Play playlist now")
+        self.play_btn.clicked.connect(lambda: self.play_requested.emit(self.playlist_id))
+        layout.addWidget(self.play_btn)
+
+        self.queue_btn = QPushButton(self)
+        self.queue_btn.setObjectName("Ghost")
+        self.queue_btn.setFixedSize(26, 26)
+        self.queue_btn.setIcon(queue_icon(Palette.muted))
+        self.queue_btn.setIconSize(QSize(13, 13))
+        self.queue_btn.setToolTip("Add to upcoming queue")
+        self.queue_btn.clicked.connect(lambda: self.queue_requested.emit(self.playlist_id))
+        layout.addWidget(self.queue_btn)
+
+        self.del_btn = QPushButton(self)
+        self.del_btn.setObjectName("Ghost")
+        self.del_btn.setFixedSize(26, 26)
+        self.del_btn.setIcon(close_icon(Palette.muted))
+        self.del_btn.setIconSize(QSize(12, 12))
+        self.del_btn.setToolTip("Delete playlist")
+        self.del_btn.clicked.connect(lambda: self.delete_requested.emit(self.playlist_id))
+        layout.addWidget(self.del_btn)
+
+    def enterEvent(self, event) -> None:  # noqa: N802
+        self._hover = True
+        self.update()
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        self._hover = False
+        self.update()
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            child = self.childAt(event.position().toPoint())
+            if child not in (self.play_btn, self.queue_btn, self.del_btn):
+                self.picked.emit(self.playlist_id)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        if self._hover:
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(244, 233, 221, 14))
+            painter.drawRoundedRect(QRectF(0, 1, self.width(), self.height() - 2), 8, 8)
+        painter.end()
+
 
 
 # ----------------------------------------------------------------- main surface
@@ -687,6 +814,8 @@ class FloatingPanel(QWidget):
         self._art_cache: Dict[str, QPixmap] = {}
         self._art_pending: set = set()
         self._active_tab = "queue"
+        self._current_playlist_id: Optional[int] = None
+        self._pending_imported_playlist: Optional[Tuple[str, List[Song]]] = None
         self._view_songs: List[Song] = []
 
         self.toast = NowPlayingToast()
@@ -850,6 +979,7 @@ class FloatingPanel(QWidget):
         column.addLayout(self._build_header())
         column.addWidget(self._build_now_card())
         column.addLayout(self._build_search())
+        column.addWidget(self._build_import_banner())
         column.addLayout(self._build_tabs_row())
         column.addWidget(self._build_queue())
         self.panel_hairline = Hairline(holder)
@@ -1059,6 +1189,43 @@ class FloatingPanel(QWidget):
 
         return row
 
+    def _build_import_banner(self) -> QWidget:
+        self.import_banner = QFrame(self)
+        self.import_banner.setObjectName("NowCard")
+        self.import_banner.setStyleSheet(
+            f"background: rgba(244, 233, 221, 0.06); border: 1px solid {Palette.amber_lo}; border-radius: 10px;"
+        )
+        self.import_banner.setFixedHeight(34)
+        ib_layout = QHBoxLayout(self.import_banner)
+        ib_layout.setContentsMargins(10, 0, 8, 0)
+        ib_layout.setSpacing(8)
+
+        self.import_banner_lbl = QLabel(self.import_banner)
+        self.import_banner_lbl.setObjectName("Hint")
+        self.import_banner_lbl.setStyleSheet(f"color: {Palette.text}; font-size: 11px;")
+        ib_layout.addWidget(self.import_banner_lbl, 1)
+
+        self.import_save_btn = QPushButton("Save Playlist", self.import_banner)
+        self.import_save_btn.setObjectName("Chip")
+        self.import_save_btn.setStyleSheet(
+            f"background: rgba(212, 140, 78, 0.25); border: 1px solid {Palette.amber}; color: {Palette.amber_hi}; font-weight: 700; font-size: 10px;"
+        )
+        self.import_save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.import_save_btn.clicked.connect(self._save_imported_playlist)
+        ib_layout.addWidget(self.import_save_btn)
+
+        self.import_dismiss_btn = QPushButton(self.import_banner)
+        self.import_dismiss_btn.setObjectName("Ghost")
+        self.import_dismiss_btn.setFixedSize(20, 20)
+        self.import_dismiss_btn.setIcon(close_icon(Palette.muted))
+        self.import_dismiss_btn.setIconSize(QSize(10, 10))
+        self.import_dismiss_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.import_dismiss_btn.clicked.connect(lambda: self.import_banner.setVisible(False))
+        ib_layout.addWidget(self.import_dismiss_btn)
+
+        self.import_banner.setVisible(False)
+        return self.import_banner
+
     def _build_tabs_row(self) -> QHBoxLayout:
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
@@ -1070,6 +1237,12 @@ class FloatingPanel(QWidget):
         self.tab_queue.setChecked(True)
         self.tab_queue.setIcon(queue_icon())
         self.tab_queue.setIconSize(QSize(12, 12))
+
+        self.tab_playlists = QPushButton(" Playlists", self)
+        self.tab_playlists.setObjectName("TabButton")
+        self.tab_playlists.setCheckable(True)
+        self.tab_playlists.setIcon(playlist_icon())
+        self.tab_playlists.setIconSize(QSize(12, 12))
 
         self.tab_favs = QPushButton(" Favorites", self)
         self.tab_favs.setObjectName("TabButton")
@@ -1091,12 +1264,14 @@ class FloatingPanel(QWidget):
         self.tab_lyrics.setToolTip("live song lyrics")
 
         row.addWidget(self.tab_queue)
+        row.addWidget(self.tab_playlists)
         row.addWidget(self.tab_favs)
         row.addWidget(self.tab_history)
         row.addWidget(self.tab_lyrics)
         row.addStretch(1)
 
         self.tab_queue.clicked.connect(lambda: self._switch_tab("queue"))
+        self.tab_playlists.clicked.connect(lambda: self._switch_tab("playlists"))
         self.tab_favs.clicked.connect(lambda: self._switch_tab("favorites"))
         self.tab_history.clicked.connect(lambda: self._switch_tab("history"))
         self.tab_lyrics.clicked.connect(lambda: self._switch_tab("lyrics"))
@@ -1266,6 +1441,9 @@ class FloatingPanel(QWidget):
             self.panel_export.setIcon(download_icon())
             self.panel_export.setIconSize(QSize(14, 14))
 
+        self.tab_playlists.setIcon(playlist_icon())
+        self.tab_playlists.setIconSize(QSize(12, 12))
+
         self.tab_lyrics.setIcon(lyrics_icon())
         self.tab_lyrics.setIconSize(QSize(12, 12))
 
@@ -1338,7 +1516,10 @@ class FloatingPanel(QWidget):
     # ------------------------------------------------------------- tabs & library
     def _switch_tab(self, tab: str) -> None:
         self._active_tab = tab
+        if tab != "playlists":
+            self._current_playlist_id = None
         self.tab_queue.setChecked(tab == "queue")
+        self.tab_playlists.setChecked(tab == "playlists")
         self.tab_favs.setChecked(tab == "favorites")
         self.tab_history.setChecked(tab == "history")
         self.tab_lyrics.setChecked(tab == "lyrics")
@@ -1362,6 +1543,11 @@ class FloatingPanel(QWidget):
     def _refresh_tab_content(self) -> None:
         if self._active_tab == "queue":
             self._render_song_list(self.core.queue, active_idx=self.core.cursor, empty_hint="search for something warm")
+        elif self._active_tab == "playlists":
+            if self._current_playlist_id is not None:
+                self._render_playlist_detail(self._current_playlist_id)
+            else:
+                self._render_playlists_overview()
         elif self._active_tab == "favorites":
             favs = self.storage.get_favorites() if self.storage else []
             self._render_song_list(favs, active_idx=-1, empty_hint="no favorites pinned yet — click ♡ to save")
@@ -1369,14 +1555,17 @@ class FloatingPanel(QWidget):
             hist = self.storage.get_history() if self.storage else []
             self._render_song_list(hist, active_idx=-1, empty_hint="no recently played history yet")
 
-    def _render_song_list(self, songs: List[Song], active_idx: int = -1, empty_hint: str = "") -> None:
-        self._view_songs = list(songs)
-        # Clear existing rows
+    def _clear_queue_list(self) -> None:
         for position in reversed(range(self.queue_list.count())):
-            widget = self.queue_list.itemAt(position).widget()
-            if isinstance(widget, QueueRow):
+            item = self.queue_list.itemAt(position)
+            widget = item.widget() if item else None
+            if widget and widget is not self._empty:
                 self.queue_list.takeAt(position)
                 widget.deleteLater()
+
+    def _render_song_list(self, songs: List[Song], active_idx: int = -1, empty_hint: str = "") -> None:
+        self._view_songs = list(songs)
+        self._clear_queue_list()
 
         if not songs:
             self._empty.setText(empty_hint)
@@ -1402,8 +1591,257 @@ class FloatingPanel(QWidget):
         picked_song = self._view_songs[index]
         if self._active_tab == "queue":
             self.core.play_at(index)
+        elif self._active_tab == "playlists" and self._current_playlist_id is not None:
+            self.core.adopt(self._view_songs, index)
+            self._set_status(f"playing {picked_song.title[:20]}")
         else:
             self.core.play(picked_song, expand=True)
+
+    # ------------------------------------------------------------- playlists management
+    def _render_playlists_overview(self) -> None:
+        self._current_playlist_id = None
+        self._clear_queue_list()
+
+        # Overview toolbar
+        overview_bar = QFrame(self.queue_host)
+        overview_bar.setStyleSheet("background: transparent; border: none;")
+        ob_layout = QHBoxLayout(overview_bar)
+        ob_layout.setContentsMargins(6, 2, 6, 6)
+        ob_layout.setSpacing(6)
+
+        title_lbl = QLabel("Saved Playlists", overview_bar)
+        title_lbl.setStyleSheet(f"color: {Palette.text}; font-size: 12px; font-weight: 600;")
+        ob_layout.addWidget(title_lbl, 1)
+
+        new_pl_btn = QPushButton("+ New", overview_bar)
+        new_pl_btn.setObjectName("Ghost")
+        new_pl_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        new_pl_btn.setStyleSheet(f"color: {Palette.amber_hi}; font-size: 11px; font-weight: 600; padding: 2px 6px;")
+        new_pl_btn.clicked.connect(self._create_new_playlist_dialog)
+        ob_layout.addWidget(new_pl_btn)
+
+        save_queue_btn = QPushButton("+ Save Queue", overview_bar)
+        save_queue_btn.setObjectName("Ghost")
+        save_queue_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        save_queue_btn.setStyleSheet(f"color: {Palette.text}; font-size: 11px; font-weight: 500; padding: 2px 6px;")
+        save_queue_btn.setToolTip("Save the current queue as a playlist")
+        save_queue_btn.clicked.connect(self._save_queue_as_playlist_dialog)
+        ob_layout.addWidget(save_queue_btn)
+
+        self.queue_list.insertWidget(1, overview_bar)
+
+        playlists = self.storage.get_playlists() if self.storage else []
+        if not playlists:
+            self._empty.setText("no playlists saved yet — paste a link or click '+ New'")
+            self._empty.setVisible(True)
+            self.count.setText("0 playlists")
+            return
+
+        self._empty.setVisible(False)
+        for index, pl in enumerate(playlists):
+            card = PlaylistCard(
+                playlist_id=pl["id"],
+                name=pl["name"],
+                track_count=pl["track_count"],
+                source_type=pl.get("source_type", "custom"),
+                parent=self.queue_host,
+            )
+            card.picked.connect(self._open_playlist_detail)
+            card.play_requested.connect(self._play_playlist)
+            card.queue_requested.connect(self._queue_playlist)
+            card.delete_requested.connect(self._delete_playlist)
+            self.queue_list.insertWidget(index + 2, card)
+
+        self.count.setText(pretty_count(len(playlists), "playlist"))
+
+    def _render_playlist_detail(self, playlist_id: int) -> None:
+        self._clear_queue_list()
+        if not self.storage:
+            return
+        pl = self.storage.get_playlist(playlist_id)
+        if not pl:
+            self._current_playlist_id = None
+            self._render_playlists_overview()
+            return
+
+        tracks = self.storage.get_playlist_tracks(playlist_id)
+        self._view_songs = list(tracks)
+
+        # Header toolbar for playlist detail
+        detail_header = QFrame(self.queue_host)
+        detail_header.setStyleSheet("background: transparent; border: none;")
+        dh_layout = QHBoxLayout(detail_header)
+        dh_layout.setContentsMargins(4, 2, 4, 6)
+        dh_layout.setSpacing(6)
+
+        back_btn = QPushButton("← Back", detail_header)
+        back_btn.setObjectName("Ghost")
+        back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        back_btn.setStyleSheet(f"color: {Palette.muted}; font-size: 11px; font-weight: 600; padding: 2px 6px;")
+        back_btn.clicked.connect(self._back_to_playlists)
+        dh_layout.addWidget(back_btn)
+
+        title_lbl = QLabel(pl["name"], detail_header)
+        title_lbl.setStyleSheet(f"color: {Palette.amber_hi}; font-size: 12px; font-weight: 700;")
+        dh_layout.addWidget(title_lbl, 1)
+
+        play_btn = QPushButton("Play All", detail_header)
+        play_btn.setObjectName("Ghost")
+        play_btn.setIcon(play_icon(Palette.amber))
+        play_btn.setIconSize(QSize(11, 11))
+        play_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        play_btn.setStyleSheet(f"color: {Palette.amber}; font-size: 11px; font-weight: 600; padding: 2px 6px;")
+        play_btn.clicked.connect(lambda: self._play_playlist(playlist_id))
+        dh_layout.addWidget(play_btn)
+
+        del_btn = QPushButton(detail_header)
+        del_btn.setObjectName("Ghost")
+        del_btn.setIcon(close_icon(Palette.muted))
+        del_btn.setIconSize(QSize(11, 11))
+        del_btn.setToolTip("Delete playlist")
+        del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        del_btn.clicked.connect(lambda: self._delete_playlist(playlist_id))
+        dh_layout.addWidget(del_btn)
+
+        self.queue_list.insertWidget(1, detail_header)
+
+        if not tracks:
+            self._empty.setText("playlist is empty — right-click songs to add them")
+            self._empty.setVisible(True)
+            self.count.setText("0 tracks")
+            return
+
+        self._empty.setVisible(False)
+        for index, song in enumerate(tracks):
+            is_fav = bool(self.storage.is_favorite(song.video_id))
+            row = QueueRow(index, song, is_fav=is_fav, parent=self.queue_host)
+            row.picked.connect(self._on_row_picked)
+            row.fav_toggled.connect(self._on_row_fav_toggled)
+            self.queue_list.insertWidget(index + 2, row)
+
+        self.count.setText(pretty_count(len(tracks), "track"))
+
+    def _open_playlist_detail(self, playlist_id: int) -> None:
+        self._current_playlist_id = playlist_id
+        self._render_playlist_detail(playlist_id)
+
+    def _back_to_playlists(self) -> None:
+        self._current_playlist_id = None
+        self._render_playlists_overview()
+
+    def _play_playlist(self, playlist_id: int) -> None:
+        if not self.storage:
+            return
+        tracks = self.storage.get_playlist_tracks(playlist_id)
+        if not tracks:
+            self._set_status("playlist is empty")
+            return
+        self.core.adopt(tracks, 0)
+        self._switch_tab("queue")
+        self._set_status(f"playing playlist ({len(tracks)} tracks)")
+
+    def _queue_playlist(self, playlist_id: int) -> None:
+        if not self.storage:
+            return
+        tracks = self.storage.get_playlist_tracks(playlist_id)
+        if not tracks:
+            self._set_status("playlist is empty")
+            return
+        self.core.enqueue_many(tracks)
+        self._set_status(f"queued {len(tracks)} tracks")
+
+    def _delete_playlist(self, playlist_id: int) -> None:
+        reply = QMessageBox.question(
+            self,
+            "Delete Playlist",
+            "Are you sure you want to delete this playlist?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            if self.storage:
+                self.storage.delete_playlist(playlist_id)
+            self._set_status("playlist deleted")
+            self._current_playlist_id = None
+            self._render_playlists_overview()
+
+    def _remove_track_from_current_playlist(self, video_id: str) -> None:
+        if self.storage and self._current_playlist_id is not None:
+            self.storage.remove_track_from_playlist(self._current_playlist_id, video_id)
+            self._set_status("removed track from playlist")
+            self._render_playlist_detail(self._current_playlist_id)
+
+    def _add_song_to_playlist(self, playlist_id: int, song: Song, playlist_name: str) -> None:
+        if not self.storage:
+            return
+        self.storage.add_tracks_to_playlist(playlist_id, [song])
+        self._set_status(f"added to {playlist_name}")
+        if self._active_tab == "playlists" and self._current_playlist_id == playlist_id:
+            self._render_playlist_detail(playlist_id)
+
+    def _create_playlist_with_song(self, song: Song) -> None:
+        name, ok = QInputDialog.getText(
+            self,
+            "New Playlist",
+            "Playlist Name:",
+            text=f"{song.artist} Mix" if song.artist else "New Playlist",
+        )
+        if ok and name.strip() and self.storage:
+            clean_name = name.strip()
+            pl_id = self.storage.create_playlist(name=clean_name, source_type="custom")
+            self.storage.add_tracks_to_playlist(pl_id, [song])
+            self._set_status(f"created playlist '{clean_name[:18]}'")
+            if self._active_tab == "playlists":
+                self._open_playlist_detail(pl_id)
+
+    def _create_new_playlist_dialog(self) -> None:
+        name, ok = QInputDialog.getText(
+            self,
+            "New Playlist",
+            "Playlist Name:",
+            text="My Playlist",
+        )
+        if ok and name.strip() and self.storage:
+            clean_name = name.strip()
+            pl_id = self.storage.create_playlist(name=clean_name, source_type="custom")
+            self._set_status(f"created playlist '{clean_name[:18]}'")
+            self._open_playlist_detail(pl_id)
+
+    def _save_queue_as_playlist_dialog(self) -> None:
+        if not self.core.queue:
+            self._set_status("queue is empty")
+            return
+        name, ok = QInputDialog.getText(
+            self,
+            "Save Queue as Playlist",
+            "Playlist Name:",
+            text=f"Queue {time.strftime('%b %d')}",
+        )
+        if ok and name.strip() and self.storage:
+            clean_name = name.strip()
+            pl_id = self.storage.create_playlist(name=clean_name, source_type="custom")
+            self.storage.add_tracks_to_playlist(pl_id, self.core.queue)
+            self._set_status(f"saved playlist '{clean_name[:18]}'")
+            if self._active_tab == "playlists":
+                self._render_playlists_overview()
+
+    def _show_import_save_banner(self, title: str, songs: List[Song]) -> None:
+        self._pending_imported_playlist = (title, songs)
+        display_title = title if len(title) <= 24 else f"{title[:21]}..."
+        self.import_banner_lbl.setText(f"Imported '{display_title}' ({len(songs)} tracks)")
+        self.import_banner.setVisible(True)
+
+    def _save_imported_playlist(self) -> None:
+        if not self._pending_imported_playlist or not self.storage:
+            return
+        title, songs = self._pending_imported_playlist
+        pl_id = self.storage.create_playlist(name=title, source_type="imported")
+        self.storage.add_tracks_to_playlist(pl_id, songs)
+        self.import_banner.setVisible(False)
+        self._pending_imported_playlist = None
+        self._set_status(f"saved '{title[:18]}' to playlists ♥")
+        if self._active_tab == "playlists":
+            self._render_playlists_overview()
 
     def _on_row_fav_toggled(self, index: int) -> None:
         if not self.storage or not 0 <= index < len(self._view_songs):
@@ -2060,6 +2498,7 @@ class FloatingPanel(QWidget):
         self._switch_tab("queue")
         self.core.adopt(songs, 0)
         self._set_status(f"imported {pretty_count(len(songs), 'track')} ({source})")
+        self._show_import_save_banner(source, songs)
 
     def _on_playlist_failed(self, error: str) -> None:
         self._set_status("import failed")

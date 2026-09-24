@@ -281,6 +281,20 @@ class PlaybackCore(QObject):
         return -1
 
     # ------------------------------------------------------------------- queue
+    def enqueue(self, song: Optional[Song]) -> None:
+        """Append a single song to the upcoming queue."""
+        if not song:
+            return
+        self.queue.append(song)
+        self.queue_changed.emit(self.queue)
+
+    def enqueue_many(self, songs: List[Song]) -> None:
+        """Append multiple songs to the upcoming queue."""
+        if not songs:
+            return
+        self.queue.extend(songs)
+        self.queue_changed.emit(self.queue)
+
     def adopt(self, songs: List[Song], start: int = 0) -> None:
         """Replace the queue wholesale (used for search results) and start playing."""
         if not songs:

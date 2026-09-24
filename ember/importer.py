@@ -65,6 +65,7 @@ def fetch_spotify_tracks(url: str, timeout: float = 8.0) -> List[Dict[str, Any]]
         entity = data.get("props", {}).get("pageProps", {}).get("state", {}).get("data", {}).get("entity", {})
 
         track_list: List[Dict[str, Any]] = entity.get("trackList", [])
+        playlist_title = str(entity.get("name") or entity.get("title") or "Spotify Playlist")
         if not track_list and entity_type == "track":
             # Single track fallback
             name = entity.get("name") or entity.get("title")
@@ -73,14 +74,17 @@ def fetch_spotify_tracks(url: str, timeout: float = 8.0) -> List[Dict[str, Any]]
             if name:
                 track_list = [{"title": name, "subtitle": artist, "duration": duration}]
 
-        log.info("Scraped %d Spotify tracks from %s", len(track_list), entity_type)
+        for item in track_list:
+            item["playlist_title"] = playlist_title
+
+        log.info("Scraped %d Spotify tracks from %s (%s)", len(track_list), entity_type, playlist_title)
         return track_list
     except Exception as exc:
         log.error("Failed to scrape Spotify playlist %r: %s", url, exc)
         return []
 
 
-def parse_youtube_playlist(url: str, timeout_sec: int = 15) -> List[Song]:
+def parse_youtube_playlist(url: str, timeout_sec: int = 15) -> tuple[str, List[Song]]:
     """Extract songs from a YouTube playlist via yt-dlp flat extraction."""
     import yt_dlp
 
@@ -96,7 +100,8 @@ def parse_youtube_playlist(url: str, timeout_sec: int = 15) -> List[Song]:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             data = ydl.extract_info(url.strip(), download=False)
             if not data:
-                return []
+                return "YouTube Playlist", []
+            pl_title = str(data.get("title") or "YouTube Playlist")
             entries = data.get("entries") or []
             songs: List[Song] = []
             for item in entries:
@@ -121,8 +126,8 @@ def parse_youtube_playlist(url: str, timeout_sec: int = 15) -> List[Song]:
                         artwork_url=art_url,
                     )
                 )
-            log.info("Extracted %d tracks from YouTube playlist", len(songs))
-            return songs
+            log.info("Extracted %d tracks from YouTube playlist %r", len(songs), pl_title)
+            return pl_title, songs
     except Exception as exc:
         log.warning("YouTube playlist extraction failed: %s", exc)
-        return []
+        return "YouTube Playlist", []

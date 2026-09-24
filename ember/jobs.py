@@ -296,12 +296,12 @@ class PlaylistImportJob(CancellableJob):
 
         try:
             if YOUTUBE_PLAYLIST_RE.search(self.url):
-                songs = parse_youtube_playlist(self.url)
+                title, songs = parse_youtube_playlist(self.url)
                 if self.is_cancelled:
                     return
                 if not songs:
                     raise RuntimeError("No playable tracks found in YouTube playlist")
-                self.signals.ready.emit(songs, "YouTube Playlist")
+                self.signals.ready.emit(songs, title or "YouTube Playlist")
                 return
 
             if SPOTIFY_URL_RE.search(self.url):
@@ -311,6 +311,7 @@ class PlaylistImportJob(CancellableJob):
                 if not raw_tracks:
                     raise RuntimeError("Could not retrieve tracks from Spotify link")
 
+                pl_title = raw_tracks[0].get("playlist_title", "Spotify Playlist") if raw_tracks else "Spotify Playlist"
                 songs: list[Song] = []
                 for item in raw_tracks[:60]:
                     if self.is_cancelled:
@@ -331,7 +332,7 @@ class PlaylistImportJob(CancellableJob):
                     return
                 if not songs:
                     raise RuntimeError("Could not resolve tracks from Spotify link")
-                self.signals.ready.emit(songs, "Spotify Playlist")
+                self.signals.ready.emit(songs, pl_title)
                 return
 
             raise RuntimeError("Unsupported playlist URL format")
