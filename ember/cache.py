@@ -14,7 +14,10 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import QStandardPaths
+try:
+    from PyQt6.QtCore import QStandardPaths
+except ImportError:
+    QStandardPaths = None
 
 log = logging.getLogger(__name__)
 
@@ -31,9 +34,12 @@ class AudioDiskCache:
         enabled: bool = True,
     ) -> None:
         if cache_dir is None:
-            base = QStandardPaths.writableLocation(
-                QStandardPaths.StandardLocation.CacheLocation
-            ) or str(Path.home() / ".cache")
+            if QStandardPaths is not None:
+                base = QStandardPaths.writableLocation(
+                    QStandardPaths.StandardLocation.CacheLocation
+                ) or str(Path.home() / ".cache")
+            else:
+                base = str(Path.home() / ".cache")
             cache_dir = Path(base) / "ember" / "tracks"
 
         self.cache_dir = Path(cache_dir)

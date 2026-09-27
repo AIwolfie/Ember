@@ -208,6 +208,7 @@ class PlaybackCore(QObject):
         self._lifecycle("switch_timeout")
         self._switching = False
         self._loaded_id = None
+        self.player.stop()  # Prevents late-arriving stream from taking over
         self.loading_changed.emit(False)
         self.notice.emit("that track wouldn't open")
         self._error_streak += 1

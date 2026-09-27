@@ -1,3 +1,4 @@
+
 """
 stream.py
 Resolves a track id (or a pasted link) into a direct HTTPS audio stream with
@@ -15,9 +16,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yt_dlp
 
-from .cache import AudioDiskCache
-from .config import STREAM_CACHE_TTL_S, YTDLP_MAX_AGE_DAYS
-from .models import Song
+try:
+    from .cache import AudioDiskCache
+    from .config import STREAM_CACHE_TTL_S, YTDLP_MAX_AGE_DAYS
+    from .models import Song
+except ImportError:
+    from cache import AudioDiskCache
+    from config import STREAM_CACHE_TTL_S, YTDLP_MAX_AGE_DAYS
+    from models import Song
 
 log = logging.getLogger(__name__)
 
@@ -167,7 +173,7 @@ BASE_OPTIONS: Dict[str, Any] = {
     "extractor_retries": 0,
     "extractor_args": {
         "youtube": {
-            "player_client": ["android", "web"],
+            "player_client": ["android", "ios"],
         }
     },
 }
