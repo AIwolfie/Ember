@@ -1,0 +1,65 @@
+name: Build & Release Auto-Updater
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'Android_APK/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Extract version from pubspec
+        id: extract_version
+        run: |
+          VERSION=$(grep '^version: ' ember_flutter/pubspec.yaml | awk '{print $2}' | cut -d '+' -f 1)
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: ember_flutter
+
+      - name: Build APK
+        run: flutter build apk --release
+        working-directory: ember_flutter
+
+      - name: Commit APK to repository
+        run: |
+          mkdir -p Android_APK
+          cp ember_flutter/build/app/outputs/flutter-apk/app-release.apk Android_APK/Ember_Latest.apk
+          cp ember_flutter/build/app/outputs/flutter-apk/app-release.apk Android_APK/Ember_v${{ env.APP_VERSION }}.apk
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add Android_APK/
+          git commit -m "Auto-build: Update Android_APK to v${{ env.APP_VERSION }} [skip ci]" || echo "No changes to commit"
+          git push
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.APP_VERSION }}
+          name: Auto Release v${{ env.APP_VERSION }}
+          files: |
+            Android_APK/Ember_Latest.apk
+            Android_APK/Ember_v${{ env.APP_VERSION }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
