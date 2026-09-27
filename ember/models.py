@@ -19,6 +19,7 @@ class Song:
     duration: str = ""
     artwork_url: str = ""
     stream_url: Optional[str] = None
+    type: str = "song"
 
     @property
     def key(self) -> str:
@@ -50,6 +51,7 @@ class Song:
             duration=str(data.get("duration", "")),
             artwork_url=str(data.get("artwork_url", "")),
             stream_url=data.get("stream_url"),
+            type=str(data.get("type", "song")),
         )
 
     def __str__(self) -> str:

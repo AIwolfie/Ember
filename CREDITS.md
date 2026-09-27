@@ -21,5 +21,11 @@
 
 ---
 
+## Mobile Application Contributor
+- **Kenil Ribadiay** — [kenilribadiay.in](https://kenilribadiay.in)
+- Initiated and integrated the Android Flutter mobile port of Ember directly into the repository using native Chaquopy bindings.
+
+---
+
 ## License
 Ember is distributed under the terms of the **MIT License**. The original license and copyright notice are preserved in [LICENSE](LICENSE).

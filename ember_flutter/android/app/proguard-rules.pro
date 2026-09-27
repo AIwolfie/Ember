@@ -1,0 +1,19 @@
+-keep class com.ryanheise.audioservice.** { *; }
+-keepclasseswithmembers class * { @androidx.annotation.Keep <fields>; }
+-keepclasseswithmembers class * { @androidx.annotation.Keep <methods>; }
+-keep class com.chaquo.python.** { *; }
+-keep class com.example.ember_flutter.MainActivity { *; }
+-keep class io.flutter.** { *; }
+-dontwarn com.google.android.play.**
+-dontwarn io.flutter.embedding.engine.deferredcomponents.**
+
+-keep class com.ryanheise.just_audio.** { *; }
+-keep class com.ryanheise.just_audio_background.** { *; }
+-keep class com.ryanheise.audio_session.** { *; }
+-keep class androidx.media3.** { *; }
+-keep class com.google.android.exoplayer2.** { *; }
+-dontwarn com.ryanheise.just_audio.**
+-dontwarn com.ryanheise.just_audio_background.**
+-dontwarn com.ryanheise.audio_session.**
+-dontwarn com.google.android.exoplayer2.**
+-dontwarn androidx.media3.**
