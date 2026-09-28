@@ -88,6 +88,29 @@ class _MainLayoutState extends State<MainLayout> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateChecker.checkForUpdate(context);
     });
+
+    UpdateService.instance.onUpdateReady.listen((ready) {
+      if (ready && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'A background update has been installed! Please restart the app.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFF1E1E1E),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(hours: 24),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.orangeAccent,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    });
   }
 
   @override

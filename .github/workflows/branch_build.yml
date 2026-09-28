@@ -1,0 +1,58 @@
+name: Compile APK on Push (For PRs & Branches)
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build_and_commit_apk:
+    # We only run this on branches/forks, NOT on the original repo's main branch 
+    # to avoid conflicting with pipeline.yml
+    if: github.ref != 'refs/heads/main' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+
+      - name: Build Standard APK
+        run: |
+          cd ember_flutter
+          flutter pub get
+          flutter build apk --release
+
+      - name: Commit APK to Repository
+        run: |
+          # Push the APK to the root folder out of ember_flutter
+          mkdir -p Android_APK
+          cp ember_flutter/build/app/outputs/flutter-apk/app-release.apk Android_APK/Preview_Build.apk
+          
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add Android_APK/Preview_Build.apk
+          # Skip CI flag prevents infinite trigger loops
+          git commit -m "Auto-build: Add Preview APK for Pull Request [skip ci]" || echo "No changes to commit"
+          git push

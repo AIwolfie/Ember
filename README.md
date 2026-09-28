@@ -267,6 +267,33 @@ Ember/
 
 <br/>
 
+## 📱 App Deployments & OTA Updates
+
+Ember uses a seamless CI/CD pipeline allowing instant Over-The-Air (OTA) patching via Shorebird, meaning users never have to manually reinstall APKs to get your latest dart code! 
+
+Whenever you push to the `main` branch, the pipeline will perfectly choose the deployment strategy based on exactly one thing: **the version in `ember_flutter/pubspec.yaml`**.
+
+>**1. Pushing Silent OTA Patches (No Version Bump)**
+>If you make a bug fix or UI change to the Flutter code and want to silently push it to all users immediately:
+>- **DO NOT** change the version in `pubspec.yaml`! Leave it exactly as is.
+>- Commit and push to `main`.
+>- **Result:** The CI pipeline will automatically run `shorebird patch`. All users around the world will instantly download this patch in the background and the app will notify them to restart!
+
+>**2. Publishing a New Base APK Release (Version Bump)**
+>If you add complex new native Android packages or major features and need to completely replace the APK:
+>- **BUMP** the `version:` in `pubspec.yaml` (e.g., from `1.0.1+2` to `1.0.2+3`).
+>- Commit and push to `main`.
+>- **Result:** The CI pipeline will build a brand new Base Release containing the Shorebird SDK, push it as a new GitHub Release tag, and users will see an "Update Available 🚀" prompt inside their app asking them to download the new APK!
+
+### Contributing & Pull Requests
+When you push to any branch *other* than `main` (like a PR), the secondary `branch_build.yml` Action runs. It securely compiles a standard preview APK and commits it to the root folder as `Android_APK/Preview_Build.apk`, allowing PR reviewers to easily download and test your code without compiling!
+
+<br/>
+
+---
+
+<br/>
+
 ## 🧪 &nbsp; Verification & Testing
 
 Ember features a comprehensive automated test suite covering models, themes, database integrity, playlists, and resilience:
