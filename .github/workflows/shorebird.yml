@@ -70,12 +70,12 @@ jobs:
             echo "::error::SHOREBIRD_TOKEN secret is missing. Please set SHOREBIRD_TOKEN in GitHub repository Settings -> Secrets and variables -> Actions."
             exit 1
           fi
-          # Publish patch without bypassing native/asset safety checks
-          shorebird patch android --no-confirm
+          # Allow native diffs to handle R8 map ID bytecode variations between build runners
+          shorebird patch android --release-version=latest --allow-native-diffs --no-confirm
 
       - name: Validate Patch (Dry Run)
         if: ${{ inputs.dry_run }}
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
-          shorebird patch android --dry-run
+          shorebird patch android --release-version=latest --allow-native-diffs --dry-run
