@@ -417,6 +417,66 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                                       ),
                                       builder: (ctx) => Wrap(
                                         children: [
+                                          ListTile(
+                                            leading: const Icon(
+                                              Icons.playlist_play_rounded,
+                                              color: Colors.white,
+                                            ),
+                                            title: const Text(
+                                              'Play Next',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            onTap: () {
+                                              context.read<AudioBloc>().add(
+                                                AudioPlayNext(track),
+                                              );
+                                              Navigator.pop(ctx);
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Playing next in queue',
+                                                      ),
+                                                      duration: Duration(
+                                                        seconds: 2,
+                                                      ),
+                                                    ),
+                                                  );
+                                            },
+                                          ),
+                                          ListTile(
+                                            leading: const Icon(
+                                              Icons.queue_music_rounded,
+                                              color: Colors.white,
+                                            ),
+                                            title: const Text(
+                                              'Add to Queue',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                            onTap: () {
+                                              context.read<AudioBloc>().add(
+                                                AudioAddToQueue(track),
+                                              );
+                                              Navigator.pop(ctx);
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Added to queue',
+                                                      ),
+                                                      duration: Duration(
+                                                        seconds: 2,
+                                                      ),
+                                                    ),
+                                                  );
+                                            },
+                                          ),
                                           if (!isAddedFav)
                                             ListTile(
                                               leading: const Icon(

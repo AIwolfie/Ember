@@ -60,3 +60,18 @@ class AudioUpdateQueue extends AudioEvent {
   @override
   List<Object?> get props => [newQueue];
 }
+
+class AudioPlayNext extends AudioEvent {
+  final Map<String, String> track;
+  const AudioPlayNext(this.track);
+  @override
+  List<Object?> get props => [track];
+}
+
+class AudioAddToQueue extends AudioEvent {
+  final Map<String, String> track;
+  const AudioAddToQueue(this.track);
+  @override
+  List<Object?> get props => [track];
+}
+

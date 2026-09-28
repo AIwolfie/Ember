@@ -23,6 +23,9 @@ class DatabaseService {
       path,
       version: 1,
       onCreate: _createDB,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        // Safe migration: User playlists, favorites, history, and downloads are strictly preserved.
+      },
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },

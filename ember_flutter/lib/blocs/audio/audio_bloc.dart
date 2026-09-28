@@ -57,6 +57,9 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
       emit(state.copyWith(queue: event.newQueue));
     });
 
+    on<AudioPlayNext>(_onPlayNext);
+    on<AudioAddToQueue>(_onAddToQueue);
+
     _currentIndexSub = player.currentIndexStream.listen((index) {
       add(AudioCurrentIndexChanged(index));
     });
@@ -182,15 +185,50 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
     }
   }
 
-  Future<bool> _addTrackToPlaylist(
-    int index,
-    List<Map<String, String>> currentQueue,
+  Future<void> _onPlayNext(
+    AudioPlayNext event,
+    Emitter<AudioState> emit,
   ) async {
-    if (index >= currentQueue.length) return false;
+    if (state.queue.isEmpty || state.currentTrack == null) {
+      add(AudioPlayQueue([event.track], startIndex: 0));
+      return;
+    }
 
-    final track = currentQueue[index];
+    final currNative = player.currentIndex ?? 0;
+    final currQueue = state.nativeIndexOffset + currNative;
+    final insertQueueIndex = (currQueue + 1).clamp(0, state.queue.length);
+    final insertNativeIndex = (currNative + 1).clamp(0, _playlist.length);
+
+    final newQueue = List<Map<String, String>>.from(state.queue);
+    newQueue.insert(insertQueueIndex, event.track);
+    emit(state.copyWith(queue: newQueue));
+
+    final source = await _createAudioSource(event.track);
+    if (source != null) {
+      // ignore: deprecated_member_use
+      await _playlist.insert(insertNativeIndex, source);
+    }
+  }
+
+  Future<void> _onAddToQueue(
+    AudioAddToQueue event,
+    Emitter<AudioState> emit,
+  ) async {
+    if (state.queue.isEmpty || state.currentTrack == null) {
+      add(AudioPlayQueue([event.track], startIndex: 0));
+      return;
+    }
+
+    final newQueue = List<Map<String, String>>.from(state.queue)..add(event.track);
+    emit(state.copyWith(queue: newQueue));
+
+    // If preloading is near the end, ensure next track is queued
+    _preloadNext(state.nativeIndexOffset + _playlist.length);
+  }
+
+  Future<AudioSource?> _createAudioSource(Map<String, String> track) async {
     final videoId = track['videoId'];
-    if (videoId == null) return false;
+    if (videoId == null) return null;
 
     try {
       // Offline/Local check first
@@ -211,7 +249,7 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
         if (track['artworkUrl'] != null && track['artworkUrl']!.isNotEmpty) {
           artUri = Uri.tryParse(track['artworkUrl']!);
         }
-        final audioSource = AudioSource.uri(
+        return AudioSource.uri(
           Uri.parse(audioUrl),
           tag: MediaItem(
             id: videoId,
@@ -221,11 +259,25 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
             artUri: artUri,
           ),
         );
-        await _playlist.add(audioSource);
-        return true;
       }
     } catch (e) {
       debugPrint("Error fetching track url for Queue: $e");
+    }
+    return null;
+  }
+
+  Future<bool> _addTrackToPlaylist(
+    int index,
+    List<Map<String, String>> currentQueue,
+  ) async {
+    if (index >= currentQueue.length) return false;
+
+    final track = currentQueue[index];
+    final audioSource = await _createAudioSource(track);
+    if (audioSource != null) {
+      // ignore: deprecated_member_use
+      await _playlist.add(audioSource);
+      return true;
     }
     return false;
   }

@@ -144,6 +144,52 @@ class SharedUI {
                   const Divider(color: Colors.white10),
                   ListTile(
                     leading: const Icon(
+                      Icons.playlist_play_rounded,
+                      color: Colors.white,
+                    ),
+                    title: const Text(
+                      'Play Next',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () {
+                      context.read<AudioBloc>().add(AudioPlayNext(track));
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Playing next in queue'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.queue_music_rounded,
+                      color: Colors.white,
+                    ),
+                    title: const Text(
+                      'Add to Queue',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () {
+                      context.read<AudioBloc>().add(AudioAddToQueue(track));
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Added to queue'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
                       Icons.favorite_border,
                       color: Colors.white,
                     ),
