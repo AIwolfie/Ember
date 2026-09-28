@@ -1,201 +1,200 @@
+# -*- coding: utf-8 -*-
+"""
+android_api.py
+Bridge module for Ember Flutter Android via Chaquopy.
+Exposes catalog search, home feed, radio/similar, lyrics, and stream resolution.
+"""
+
+from __future__ import annotations
+
 import json
+import logging
+from typing import Any, Dict, List, Optional
+
 try:
-    from ember.catalog import CatalogSource
-    from ember.stream import StreamResolver
+    from .catalog import CatalogSource
+    from .models import Song
+    from .stream import StreamResolver
 except ImportError:
     from catalog import CatalogSource
+    from models import Song
     from stream import StreamResolver
 
-_catalog = CatalogSource()
-_resolver = StreamResolver()
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("android_api")
 
-def search(query, filter_type=None):
-    if filter_type == "all" or not filter_type:
-        filter_type = None
-    try:
-        results = _catalog.search(query, filter_type=filter_type)
-        mapped = [
-            {
-                "videoId": r.video_id,
-                "title": r.title,
-                "artist": r.artist,
-                "duration": r.duration,
-                "artworkUrl": r.artwork_url,
-                "type": getattr(r, "type", "song")
-            }
-            for r in results
-        ]
+_catalog: Optional[CatalogSource] = None
+_stream_resolver: Optional[StreamResolver] = None
 
-        if filter_type is None:
-            artists = [m for m in mapped if m["type"] == "artist"]
-            non_artists = [m for m in mapped if m["type"] != "artist"]
-            exact_artists = [a for a in artists if a["title"].lower() == query.lower()]
-            other_artists = [a for a in artists if a not in exact_artists]
-            
-            if exact_artists:
-                mapped = exact_artists + other_artists + non_artists
-            elif artists and any(q.lower() in a["title"].lower() for q in query.split() for a in artists):
-                mapped = artists + non_artists
 
-        return mapped
-    except Exception as e:
-        return [{"videoId": "error", "title": "Failed to search", "artist": str(e), "type": "error"}]
+def _get_catalog() -> CatalogSource:
+    global _catalog
+    if _catalog is None:
+        _catalog = CatalogSource()
+    return _catalog
 
-def similar(seed_id):
-    results = _catalog.similar(seed_id)
-    return [
-        {
-            "videoId": r.video_id,
-            "title": r.title,
-            "artist": r.artist,
-            "duration": r.duration,
-            "artworkUrl": r.artwork_url,
-            "type": getattr(r, "type", "song")
-        }
-        for r in results
-    ]
 
-def get_stream_url(video_id):
-    url, error, permanent = _resolver.resolve(video_id)
+def _get_stream_resolver() -> StreamResolver:
+    global _stream_resolver
+    if _stream_resolver is None:
+        _stream_resolver = StreamResolver()
+    return _stream_resolver
+
+
+def _song_to_dict(song: Song) -> Dict[str, str]:
     return {
-        "url": url,
-        "error": str(error) if error else "",
-        "permanent": permanent
+        "videoId": str(getattr(song, "video_id", "") or ""),
+        "title": str(getattr(song, "title", "") or ""),
+        "artist": str(getattr(song, "artist", "") or ""),
+        "duration": str(getattr(song, "duration", "") or ""),
+        "artworkUrl": str(getattr(song, "artwork_url", "") or ""),
+        "type": str(getattr(song, "type", "song") or "song"),
     }
 
-def get_home(recent_ids_str=""):
-    recent_ids = recent_ids_str.split(",") if recent_ids_str else []
-    mapped_sections = []
 
-    # 1. Personalized Shelf
-    if recent_ids:
-        for seed_id in recent_ids[:1]:
-            if not seed_id: continue
-            try:
-                similar_tracks = _catalog.similar(seed_id, limit=8)
-                if similar_tracks:
-                    mapped_sections.append({
-                        "title": "Because you listened recently",
-                        "tracks": [
-                            {
-                                "videoId": r.video_id,
-                                "title": r.title,
-                                "artist": r.artist,
-                                "duration": r.duration,
-                                "artworkUrl": r.artwork_url,
-                                "type": getattr(r, "type", "song")
-                            }
-                            for r in similar_tracks
-                        ]
+def search(query: str, filter_type: Optional[str] = None) -> List[Dict[str, str]]:
+    """Search catalog and return list of song dicts."""
+    if not query or not query.strip():
+        return []
+    try:
+        cat = _get_catalog()
+        f = filter_type.strip().lower() if filter_type and filter_type.strip() else None
+        if f == "all":
+            f = None
+        results = cat.search(query.strip(), filter_type=f)
+        return [_song_to_dict(s) for s in results if s and s.video_id]
+    except Exception as exc:
+        log.error("search failed for %r: %s", query, exc)
+        return []
+
+
+def similar(seed_id: str) -> List[Dict[str, str]]:
+    """Get radio / similar tracks for a seed videoId."""
+    if not seed_id or not seed_id.strip():
+        return []
+    try:
+        cat = _get_catalog()
+        results = cat.similar(seed_id.strip())
+        return [_song_to_dict(s) for s in results if s and s.video_id]
+    except Exception as exc:
+        log.error("similar failed for %r: %s", seed_id, exc)
+        return []
+
+
+def get_stream_url(video_id: str) -> Dict[str, str]:
+    """Resolve direct audio streaming URL using yt-dlp."""
+    if not video_id or not video_id.strip():
+        return {"url": "", "format": "", "error": "Empty videoId"}
+    try:
+        resolver = _get_stream_resolver()
+        url, err, _ = resolver.resolve(video_id.strip())
+        if url:
+            return {"url": url, "format": "audio/mp4", "error": ""}
+        return {"url": "", "format": "", "error": err or "Failed to resolve stream"}
+    except Exception as exc:
+        log.error("get_stream_url failed for %r: %s", video_id, exc)
+        return {"url": "", "format": "", "error": str(exc)}
+
+
+def get_home(*args: Any, **kwargs: Any) -> str:
+    """Fetch YTMusic home feed sections and return serialized JSON."""
+    try:
+        cat = _get_catalog()
+        sections_raw = cat.home(limit=10)
+        out_sections = []
+        for sec in sections_raw:
+            if not isinstance(sec, dict):
+                continue
+            title = str(sec.get("title") or "Recommended")
+            raw_tracks = sec.get("tracks") or []
+            tracks = []
+            for t in raw_tracks:
+                if isinstance(t, Song):
+                    tracks.append(_song_to_dict(t))
+                elif isinstance(t, dict):
+                    tracks.append({
+                        "videoId": str(t.get("videoId") or t.get("video_id") or ""),
+                        "title": str(t.get("title") or ""),
+                        "artist": str(t.get("artist") or ""),
+                        "duration": str(t.get("duration") or ""),
+                        "artworkUrl": str(t.get("artworkUrl") or t.get("artwork_url") or ""),
+                        "type": str(t.get("type") or "song"),
                     })
-                    break
-            except Exception:
-                pass # Fail silently, continue to the next block
+            if tracks:
+                out_sections.append({"title": title, "tracks": tracks})
 
-    # 2. Trending Artists
+        # Fallback if home feed returns empty sections
+        if not out_sections:
+            trending = cat.search("trending music", filter_type="songs")
+            if trending:
+                out_sections.append({
+                    "title": "Quick Picks",
+                    "tracks": [_song_to_dict(s) for s in trending if s and s.video_id]
+                })
+
+        return json.dumps(out_sections)
+    except Exception as exc:
+        log.error("get_home failed: %s", exc)
+        # Attempt fallback to simple search
+        try:
+            cat = _get_catalog()
+            trending = cat.search("popular songs", filter_type="songs")
+            if trending:
+                return json.dumps([{
+                    "title": "Quick Picks",
+                    "tracks": [_song_to_dict(s) for s in trending if s and s.video_id]
+                }])
+        except Exception:
+            pass
+        return "[]"
+
+
+def lyrics(video_id: str, title: str = "", artist: str = "") -> str:
+    """Fetch track lyrics."""
+    if not video_id:
+        return ""
     try:
-        artists = _catalog.top_artists()
-        if artists:
-            mapped_sections.append({
-                "title": "Popular Artists",
-                "tracks": [
-                    {
-                        "videoId": r.video_id,
-                        "title": r.title,
-                        "artist": r.artist,
-                        "duration": r.duration,
-                        "artworkUrl": r.artwork_url,
-                        "type": getattr(r, "type", "artist")
-                    }
-                    for r in artists
+        cat = _get_catalog()
+        res = cat.lyrics(video_id.strip())
+        return str(res or "")
+    except Exception as exc:
+        log.error("lyrics failed for %r: %s", video_id, exc)
+        return ""
+
+
+def get_artist_details(browse_id: str) -> str:
+    """Fetch artist details JSON."""
+    if not browse_id:
+        return "{}"
+    try:
+        cat = _get_catalog()
+        data = cat.artist_details(browse_id.strip())
+        # Convert song dataclasses to dicts
+        for key in ("songs", "albums", "singles"):
+            if key in data and isinstance(data[key], list):
+                data[key] = [
+                    _song_to_dict(x) if isinstance(x, Song) else x
+                    for x in data[key]
                 ]
-            })
-    except Exception:
-        pass
+        return json.dumps(data)
+    except Exception as exc:
+        log.error("get_artist_details failed for %r: %s", browse_id, exc)
+        return "{}"
 
-    # 3. YTM Generic Home
+
+def import_playlist(identifier: str) -> str:
+    """Import playlist from YouTube or Spotify link / ID and return JSON."""
+    if not identifier:
+        return json.dumps({"title": "Empty URL", "tracks": []})
     try:
-        sections = _catalog.home(limit=6)
-        for sec in sections:
-            mapped_tracks = [
-                {
-                    "videoId": r.video_id,
-                    "title": r.title,
-                    "artist": r.artist,
-                    "duration": r.duration,
-                    "artworkUrl": r.artwork_url,
-                    "type": getattr(r, "type", "song")
-                }
-                for r in sec["tracks"]
+        cat = _get_catalog()
+        data = cat.import_playlist(identifier.strip())
+        if "tracks" in data and isinstance(data["tracks"], list):
+            data["tracks"] = [
+                _song_to_dict(x) if isinstance(x, Song) else x
+                for x in data["tracks"]
             ]
-            if mapped_tracks:
-                mapped_sections.append({
-                    "title": sec["title"],
-                    "tracks": mapped_tracks
-                })
-    except Exception:
-        pass
-
-    # If completely empty due to full API outage, fallback to basic search
-    if not mapped_sections:
-        try:
-            top = _catalog.search("top songs", limit=10)
-            if top:
-                mapped_sections.append({
-                    "title": "Top Songs",
-                    "tracks": [{"videoId": r.video_id, "title": r.title, "artist": r.artist, "duration": r.duration, "artworkUrl": r.artwork_url, "type": getattr(r, "type", "song")} for r in top]
-                })
-        except Exception:
-            pass
-            
-        try:
-            artists = _catalog.search("popular artists", limit=10)
-            if artists:
-                mapped_sections.append({
-                    "title": "Suggested Artists",
-                    "tracks": [{"videoId": r.video_id, "title": r.title, "artist": r.artist, "duration": r.duration, "artworkUrl": r.artwork_url, "type": getattr(r, "type", "artist")} for r in artists]
-                })
-        except Exception:
-            pass
-
-    # If completely empty still, return safe visual error structure
-    if not mapped_sections:
-         return json.dumps([{"title": "Offline or Failed to connect", "tracks": [], "error": "Could not connect to YT Music"}])
-
-    return json.dumps(mapped_sections)
-
-def get_artist_details(browse_id):
-    details = _catalog.artist_details(browse_id)
-    if not details: return "{}"
-    def _map_list(songs_list, force_type="song"):
-        return [
-            {
-                "videoId": r.video_id,
-                "title": r.title,
-                "artist": r.artist,
-                "duration": r.duration,
-                "artworkUrl": r.artwork_url,
-                "type": getattr(r, "type", force_type)
-            } for r in songs_list
-        ]
-    details["songs"] = _map_list(details.get("songs") or [], "song")
-    details["albums"] = _map_list(details.get("albums") or [], "album")
-    details["singles"] = _map_list(details.get("singles") or [], "album")
-    return json.dumps(details)
-
-def lyrics(video_id, title="", artist=""):
-    return _catalog.lyrics(video_id, title=title, artist=artist)
-
-def import_playlist(identifier):
-    data = _catalog.import_playlist(identifier)
-    data["tracks"] = [
-        {
-            "videoId": r.video_id,
-            "title": r.title,
-            "artist": r.artist,
-            "duration": r.duration,
-            "artworkUrl": r.artwork_url,
-            "type": getattr(r, "type", "song")
-        } for r in data["tracks"]
-    ]
-    return json.dumps(data)
+        return json.dumps(data)
+    except Exception as exc:
+        log.error("import_playlist failed for %r: %s", identifier, exc)
+        return json.dumps({"title": "Failed to import", "tracks": []})

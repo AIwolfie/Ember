@@ -11,7 +11,7 @@ class HomeLoadRequested extends HomeEvent {
   final bool forceRefresh;
   final String? mood;
   const HomeLoadRequested({this.forceRefresh = false, this.mood});
-  
+
   @override
   List<Object?> get props => [forceRefresh, mood];
 }

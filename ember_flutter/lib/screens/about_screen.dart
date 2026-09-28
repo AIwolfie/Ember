@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../theme.dart';
+import '../widgets/settings_sheet.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -23,13 +24,31 @@ class AboutScreen extends StatelessWidget {
           SliverAppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 8.0, top: 8.0),
-              child: CircleAvatar(
-                backgroundColor: Colors.black45,
-                child: const BackButton(color: Colors.white),
+            leading: Navigator.canPop(context)
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 8.0, top: 8.0),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.black45,
+                      child: const BackButton(color: Colors.white),
+                    ),
+                  )
+                : null,
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0, top: 8.0),
+                child: CircleAvatar(
+                  backgroundColor: Colors.black45,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: Colors.white,
+                    ),
+                    tooltip: 'Settings',
+                    onPressed: () => showSettingsSheet(context),
+                  ),
+                ),
               ),
-            ),
+            ],
             stretch: true,
             expandedHeight: 280,
             flexibleSpace: FlexibleSpaceBar(
@@ -39,43 +58,51 @@ class AboutScreen extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 16.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Ember is a premium music streaming client designed to keep your listening simple, clean, and distraction-free.\n\nNo complicated setup. No unnecessary features. Just search for music, play what you want, and let Ember handle the rest.',
-                    style: TextStyle(color: YTColors.secondary, fontSize: 15, height: 1.6, fontWeight: FontWeight.w400),
+                    style: TextStyle(
+                      color: YTColors.secondary,
+                      fontSize: 15,
+                      height: 1.6,
+                      fontWeight: FontWeight.w400,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),
-                  
+
                   // Features Grid
                   _buildSectionTitle('Features'),
                   const SizedBox(height: 20),
                   _buildFeaturesGrid(),
                   const SizedBox(height: 48),
-                  
+
                   // Built to stay lightweight
                   _buildLightweightCard(),
                   const SizedBox(height: 20),
-                  
+
                   // Open Source
                   _buildOpenSourceCard(),
                   const SizedBox(height: 48),
-                  
+
                   // Credits
                   _buildSectionTitle('Credits'),
                   const SizedBox(height: 20),
                   _buildCreditsSection(),
-                  
+
                   const SizedBox(height: 80),
                   _buildFooter(),
                   const SizedBox(height: 48),
                 ],
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -99,7 +126,7 @@ class AboutScreen extends StatelessWidget {
                   color: Colors.orangeAccent.withValues(alpha: 0.10),
                   blurRadius: 100,
                   spreadRadius: 80,
-                )
+                ),
               ],
             ),
           ),
@@ -114,17 +141,33 @@ class AboutScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: YTColors.surfaceLight,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  width: 1.5,
+                ),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black54, blurRadius: 24, offset: Offset(0, 12))
-                ]
+                  BoxShadow(
+                    color: Colors.black54,
+                    blurRadius: 24,
+                    offset: Offset(0, 12),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.whatshot, color: Colors.orangeAccent, size: 52),
+              child: const Icon(
+                Icons.whatshot,
+                color: Colors.orangeAccent,
+                size: 52,
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
               'Ember',
-              style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -1.0),
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: -1.0,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -134,7 +177,15 @@ class AboutScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
               ),
-              child: const Text('v1.0.0', style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+              child: const Text(
+                'v1.0.0',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
             ),
           ],
         ),
@@ -157,7 +208,7 @@ class AboutScreen extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildFeatureChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -171,7 +222,14 @@ class AboutScreen extends StatelessWidget {
         children: [
           Icon(icon, color: Colors.indigoAccent.shade100, size: 20),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -204,17 +262,34 @@ class AboutScreen extends StatelessWidget {
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Explore Github Repository', style: TextStyle(color: Colors.blueAccent, fontSize: 13, fontWeight: FontWeight.bold)),
+              Text(
+                'Explore Github Repository',
+                style: TextStyle(
+                  color: Colors.blueAccent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               SizedBox(width: 6),
-              Icon(Icons.arrow_forward_ios_rounded, color: Colors.blueAccent, size: 12),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Colors.blueAccent,
+                size: 12,
+              ),
             ],
           ),
         ),
-      )
+      ),
     );
   }
 
-  Widget _buildCard({required IconData icon, required String title, required String content, required Color color, Widget? action}) {
+  Widget _buildCard({
+    required IconData icon,
+    required String title,
+    required String content,
+    required Color color,
+    Widget? action,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -237,15 +312,26 @@ class AboutScreen extends StatelessWidget {
                 child: Icon(icon, color: color, size: 24),
               ),
               const SizedBox(width: 16),
-              Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          Text(content, style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
-          if (action != null) ...[
-            const SizedBox(height: 24),
-            action,
-          ]
+          Text(
+            content,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+          if (action != null) ...[const SizedBox(height: 24), action],
         ],
       ),
     );
@@ -273,7 +359,13 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDeveloperRow({required String role, required String name, required String website, required String url, required IconData icon}) {
+  Widget _buildDeveloperRow({
+    required String role,
+    required String name,
+    required String website,
+    required String url,
+    required IconData icon,
+  }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -285,7 +377,7 @@ class AboutScreen extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: YTColors.surfaceLight,
               shape: BoxShape.circle,
             ),
@@ -296,9 +388,24 @@ class AboutScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(role, style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                Text(
+                  role,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -319,7 +426,12 @@ class AboutScreen extends StatelessWidget {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 22,
+        fontWeight: FontWeight.w900,
+        letterSpacing: -0.5,
+      ),
     );
   }
 
@@ -331,12 +443,19 @@ class AboutScreen extends StatelessWidget {
         const Text(
           'Crafted for late nights, cold tea, and warm code.\nEnjoy the sound.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: YTColors.secondary, fontSize: 13, height: 1.5),
+          style: TextStyle(
+            color: YTColors.secondary,
+            fontSize: 13,
+            height: 1.5,
+          ),
         ),
         const SizedBox(height: 12),
         Text(
           '© 2026 Ember. An open-source project.',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.2), fontSize: 12),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.2),
+            fontSize: 12,
+          ),
         ),
       ],
     );

@@ -28,7 +28,13 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _hasSearched = false;
   String _currentFilter = 'All';
 
-  final List<String> _filters = ['All', 'Songs', 'Albums', 'Artists', 'Playlists'];
+  final List<String> _filters = [
+    'All',
+    'Songs',
+    'Albums',
+    'Artists',
+    'Playlists',
+  ];
 
   @override
   void dispose() {
@@ -53,12 +59,17 @@ class _SearchScreenState extends State<SearchScreen> {
       filterKey = _currentFilter.toLowerCase();
     }
 
-    final result = await PythonService.search(query.trim(), filterType: filterKey);
+    final result = await PythonService.search(
+      query.trim(),
+      filterType: filterKey,
+    );
 
     if (mounted) {
       if (result is Success<List<Map<String, String>>>) {
         setState(() {
-          final items = result.data.map((e) => Map<String, String>.from(e)).toList();
+          final items = result.data
+              .map((e) => Map<String, String>.from(e))
+              .toList();
           _results = SearchAlgorithm.optimizeResults(items, query);
           _isLoading = false;
         });
@@ -67,8 +78,13 @@ class _SearchScreenState extends State<SearchScreen> {
           _results = [];
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(result.message), backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -81,18 +97,28 @@ class _SearchScreenState extends State<SearchScreen> {
       });
       return;
     }
-    EasyDebounce.debounce('search-debounce', const Duration(milliseconds: 700), () => _performSearch(query));
+    EasyDebounce.debounce(
+      'search-debounce',
+      const Duration(milliseconds: 700),
+      () => _performSearch(query),
+    );
   }
 
   void _handleResultTap(Map<String, String> track, String type) {
     if (type == 'artist') {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ArtistScreen(artistInfo: track)));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ArtistScreen(artistInfo: track)),
+      );
       return;
     } else if (type == 'playlist' || type == 'album') {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => PlaylistScreen(playlistName: track['title'] ?? 'Playlist', remoteIdentifier: track['browseId'] ?? track['videoId']),
+          builder: (_) => PlaylistScreen(
+            playlistName: track['title'] ?? 'Playlist',
+            remoteIdentifier: track['browseId'] ?? track['videoId'],
+          ),
         ),
       );
       return;
@@ -109,7 +135,10 @@ class _SearchScreenState extends State<SearchScreen> {
         physics: const BouncingScrollPhysics(),
         slivers: [
           _buildModernAppBar(),
-          SliverPadding(padding: const EdgeInsets.only(bottom: 120), sliver: _buildMainContent()),
+          SliverPadding(
+            padding: const EdgeInsets.only(bottom: 120),
+            sliver: _buildMainContent(),
+          ),
         ],
       ),
     );
@@ -142,11 +171,18 @@ class _SearchScreenState extends State<SearchScreen> {
                     child: TextField(
                       controller: _searchController,
                       autofocus: true,
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                       textInputAction: TextInputAction.search,
                       decoration: const InputDecoration(
                         hintText: 'Songs, albums, artists...',
-                        hintStyle: TextStyle(color: Colors.white54, fontSize: 16),
+                        hintStyle: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 16,
+                        ),
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.only(left: 20, bottom: 4),
                       ),
@@ -160,14 +196,22 @@ class _SearchScreenState extends State<SearchScreen> {
                       if (value.text.isEmpty) {
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: const Icon(Icons.search, color: Colors.white54, size: 20),
+                          child: const Icon(
+                            Icons.search,
+                            color: Colors.white54,
+                            size: 20,
+                          ),
                         );
                       }
                       return Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.clear, color: Colors.white70, size: 20),
+                            icon: const Icon(
+                              Icons.clear,
+                              color: Colors.white70,
+                              size: 20,
+                            ),
                             onPressed: () {
                               _searchController.clear();
                               _onSearchChanged('');
@@ -199,23 +243,34 @@ class _SearchScreenState extends State<SearchScreen> {
                   onTap: () {
                     if (_currentFilter != filter) {
                       setState(() => _currentFilter = filter);
-                      EasyDebounce.debounce('search-filter-debounce', const Duration(milliseconds: 300), () => _performSearch(_searchController.text));
+                      EasyDebounce.debounce(
+                        'search-filter-debounce',
+                        const Duration(milliseconds: 300),
+                        () => _performSearch(_searchController.text),
+                      );
                     }
                   },
                   borderRadius: BorderRadius.circular(24),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: isSelected ? Colors.white : Colors.transparent,
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: isSelected ? Colors.white : Colors.white24),
+                      border: Border.all(
+                        color: isSelected ? Colors.white : Colors.white24,
+                      ),
                     ),
                     child: Text(
                       filter,
                       style: TextStyle(
                         color: isSelected ? Colors.black : Colors.white,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
                         fontSize: 13,
                         letterSpacing: -0.3,
                       ),
@@ -254,7 +309,11 @@ class _SearchScreenState extends State<SearchScreen> {
               SizedBox(height: 16),
               Text(
                 'No results found.',
-                style: TextStyle(color: Colors.white54, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -275,7 +334,12 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: EdgeInsets.fromLTRB(16, 24, 16, 12),
                 child: Text(
                   'Top result',
-                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
               _TopResultCard(
@@ -288,7 +352,12 @@ class _SearchScreenState extends State<SearchScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
                   child: Text(
                     type == 'artist' ? 'Top Songs' : 'More results',
-                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
                   ),
                 ),
             ],
@@ -302,7 +371,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }, childCount: _results.length),
     );
   }
-
 }
 
 class _TopResultCard extends StatelessWidget {
@@ -310,12 +378,20 @@ class _TopResultCard extends StatelessWidget {
   final String type;
   final void Function(Map<String, String>, String) onTap;
 
-  const _TopResultCard({required this.track, required this.type, required this.onTap});
+  const _TopResultCard({
+    required this.track,
+    required this.type,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     bool isArtist = type == 'artist';
-    bool showPlayOverlay = type == 'song' || type == 'video' || type == 'album' || type == 'playlist';
+    bool showPlayOverlay =
+        type == 'song' ||
+        type == 'video' ||
+        type == 'album' ||
+        type == 'playlist';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -345,12 +421,20 @@ class _TopResultCard extends StatelessWidget {
                         width: 88,
                         height: 88,
                         fit: BoxFit.cover,
-                        placeholder: (c, u) => Container(width: 88, height: 88, color: Colors.black26),
+                        placeholder: (c, u) => Container(
+                          width: 88,
+                          height: 88,
+                          color: Colors.black26,
+                        ),
                         errorWidget: (c, e, s) => Container(
                           width: 88,
                           height: 88,
                           color: Colors.black26,
-                          child: const Icon(Icons.music_note, color: Colors.white54, size: 32),
+                          child: const Icon(
+                            Icons.music_note,
+                            color: Colors.white54,
+                            size: 32,
+                          ),
                         ),
                       ),
                     ),
@@ -358,8 +442,15 @@ class _TopResultCard extends StatelessWidget {
                       Container(
                         width: 36,
                         height: 36,
-                        decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
-                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 22),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                   ],
                 ),
@@ -372,14 +463,27 @@ class _TopResultCard extends StatelessWidget {
                         track['title'] ?? 'Unknown',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          height: 1.2,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        SearchAlgorithm.getSubtitle(track, type, isTopCard: true),
+                        SearchAlgorithm.getSubtitle(
+                          track,
+                          type,
+                          isTopCard: true,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
@@ -403,14 +507,20 @@ class _StandardListItem extends StatelessWidget {
   final String type;
   final void Function(Map<String, String>, String) onTap;
 
-  const _StandardListItem({required this.track, required this.type, required this.onTap});
+  const _StandardListItem({
+    required this.track,
+    required this.type,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     bool isArtist = type == 'artist';
     return InkWell(
       onTap: () => onTap(track, type),
-      onLongPress: (type == 'song' || type == 'video') ? () => SharedUI.showTrackOptions(context, track) : null,
+      onLongPress: (type == 'song' || type == 'video')
+          ? () => SharedUI.showTrackOptions(context, track)
+          : null,
       splashColor: Colors.white12,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -423,7 +533,11 @@ class _StandardListItem extends StatelessWidget {
                 width: 56,
                 height: 56,
                 fit: BoxFit.cover,
-                placeholder: (c, u) => Container(width: 56, height: 56, color: YTColors.surfaceLight),
+                placeholder: (c, u) => Container(
+                  width: 56,
+                  height: 56,
+                  color: YTColors.surfaceLight,
+                ),
                 errorWidget: (c, e, s) => Container(
                   width: 56,
                   height: 56,
@@ -441,19 +555,36 @@ class _StandardListItem extends StatelessWidget {
                     track['title'] ?? 'Unknown',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      if (type == 'song' || type == 'video') const Icon(Icons.music_note, size: 14, color: YTColors.secondary),
-                      if (type == 'song' || type == 'video') const SizedBox(width: 4),
+                      if (type == 'song' || type == 'video')
+                        const Icon(
+                          Icons.music_note,
+                          size: 14,
+                          color: YTColors.secondary,
+                        ),
+                      if (type == 'song' || type == 'video')
+                        const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          SearchAlgorithm.getSubtitle(track, type, isTopCard: false),
+                          SearchAlgorithm.getSubtitle(
+                            track,
+                            type,
+                            isTopCard: false,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: YTColors.secondary, fontSize: 14),
+                          style: const TextStyle(
+                            color: YTColors.secondary,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -469,7 +600,11 @@ class _StandardListItem extends StatelessWidget {
             if (isArtist)
               const Padding(
                 padding: EdgeInsets.only(right: 8.0, left: 8.0),
-                child: Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
+                child: Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.white24,
+                  size: 16,
+                ),
               ),
           ],
         ),
@@ -482,7 +617,10 @@ class _HistorySliver extends StatelessWidget {
   final TextEditingController searchController;
   final void Function(String) onSearch;
 
-  const _HistorySliver({required this.searchController, required this.onSearch});
+  const _HistorySliver({
+    required this.searchController,
+    required this.onSearch,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -496,14 +634,25 @@ class _HistorySliver extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.youtube_searched_for, size: 72, color: Colors.white10),
+                  Icon(
+                    Icons.youtube_searched_for,
+                    size: 72,
+                    color: Colors.white10,
+                  ),
                   SizedBox(height: 16),
                   Text(
                     'Search for your favorites',
-                    style: TextStyle(color: Colors.white54, fontSize: 18, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   SizedBox(height: 8),
-                  Text('Songs, albums, artists and more.', style: TextStyle(color: Colors.white38, fontSize: 14)),
+                  Text(
+                    'Songs, albums, artists and more.',
+                    style: TextStyle(color: Colors.white38, fontSize: 14),
+                  ),
                 ],
               ),
             ),
@@ -513,20 +662,34 @@ class _HistorySliver extends StatelessWidget {
         return SliverList(
           delegate: SliverChildListDelegate([
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'Recent searches',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
                   TextButton(
-                    onPressed: () => context.read<StorageBloc>().add(StorageClearSearch()),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 30)),
-                    child: const Text(
+                    onPressed: () =>
+                        context.read<StorageBloc>().add(StorageClearSearch()),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(50, 30),
+                    ),
+                    child: Text(
                       'Clear',
-                      style: TextStyle(color: YTColors.primary, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: YTColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -545,14 +708,30 @@ class _HistorySliver extends StatelessWidget {
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.history, color: Colors.white54, size: 16),
+                          const Icon(
+                            Icons.history,
+                            color: Colors.white54,
+                            size: 16,
+                          ),
                           const SizedBox(width: 8),
-                          Text(q, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                          Text(
+                            q,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
                         ],
                       ),
                     ),

@@ -16,6 +16,17 @@ log = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+_VALID_FILTERS = {
+    "albums", "artists", "playlists", "community_playlists",
+    "featured_playlists", "songs", "videos", "profiles",
+    "podcasts", "episodes",
+}
+_FILTER_ALIASES = {
+    "song": "songs", "track": "songs", "tracks": "songs",
+    "video": "videos", "album": "albums", "artist": "artists",
+    "playlist": "playlists",
+}
+
 
 def _with_retry(
     operation: Callable[..., T],
@@ -107,6 +118,10 @@ class CatalogSource:
         query = (query or "").strip()
         if not query:
             return []
+
+        f = filter_type.strip().lower() if isinstance(filter_type, str) else ""
+        f = _FILTER_ALIASES.get(f, f)
+        filter_type = f if f in _VALID_FILTERS else None
 
         def _do_search() -> List[Dict[str, Any]]:
             return self.api.search(query, filter=filter_type, limit=limit)

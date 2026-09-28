@@ -1,7 +1,7 @@
 # Credits
 
 ## Original Creator
-- **Mayank Malaviya** — Original creator, architect, and copyright holder of the Ember project.
+- **Mayank Malaviya** — Original creator, architect, and copyright holder of the Ember project. Website: [aiwolfie.online](https://aiwolfie.online).
 - Original project: Ember (MIT License).
 
 ---
@@ -22,8 +22,8 @@
 ---
 
 ## Mobile Application Contributor
-- **Kenil Ribadiay** — [kenilribadiay.in](https://kenilribadiay.in)
-- Initiated and integrated the Android Flutter mobile port of Ember directly into the repository using native Chaquopy bindings.
+- **Kenil Ribadiya** — [kenilribadiya.in](https://kenilribadiya.in/)
+- Mobile App Architect & Developer — Created the Ember Android Flutter mobile app with Chaquopy Python bridge, background playback, dynamic theme customization, synced lyrics, and gesture navigation.
 
 ---
 

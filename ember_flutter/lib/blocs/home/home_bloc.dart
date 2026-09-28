@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../services/python_service.dart';
 import '../../services/database_service.dart';
 import '../../utils/result.dart';
@@ -10,11 +11,14 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<HomeLoadRequested>(_onLoadRequested);
   }
 
-  Future<void> _onLoadRequested(HomeLoadRequested event, Emitter<HomeState> emit) async {
+  Future<void> _onLoadRequested(
+    HomeLoadRequested event,
+    Emitter<HomeState> emit,
+  ) async {
     if (state is! HomeLoaded) {
       emit(HomeLoading());
     }
-    
+
     try {
       if (event.mood != null) {
         final result = await PythonService.search("${event.mood} music");
@@ -34,9 +38,16 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         }
       } else {
         final recentPlays = await DatabaseService.instance.getPlayHistory();
-        final recentIds = recentPlays.take(3).map((e) => e['videoId'] ?? '').where((id) => id.isNotEmpty).toList();
-        
-        final result = await PythonService.getHome(forceRefresh: event.forceRefresh, recentIds: recentIds);
+        final recentIds = recentPlays
+            .take(3)
+            .map((e) => e['videoId'] ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList();
+
+        final result = await PythonService.getHome(
+          forceRefresh: event.forceRefresh,
+          recentIds: recentIds,
+        );
         switch (result) {
           case Success():
             if (result.data.isEmpty) {

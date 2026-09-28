@@ -1,8 +1,8 @@
 import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/database_service.dart';
 import '../../services/python_service.dart';
@@ -25,7 +25,8 @@ class DownloadLoadAllEvent extends DownloadEvent {}
 
 // States
 class DownloadState {
-  final Map<String, double> progress; // videoId -> progress bounded (0.0 to 1.0)
+  final Map<String, double>
+  progress; // videoId -> progress bounded (0.0 to 1.0)
   final Map<String, String> completed; // videoId -> filePath
   final List<Map<String, dynamic>> downloadedTracks;
 
@@ -34,6 +35,9 @@ class DownloadState {
     this.completed = const {},
     this.downloadedTracks = const [],
   });
+
+  bool isDownloaded(String videoId) => completed.containsKey(videoId);
+  bool isDownloading(String videoId) => progress.containsKey(videoId);
 
   DownloadState copyWith({
     Map<String, double>? progress,
@@ -58,7 +62,10 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     add(DownloadLoadAllEvent());
   }
 
-  Future<void> _onLoadAll(DownloadLoadAllEvent event, Emitter<DownloadState> emit) async {
+  Future<void> _onLoadAll(
+    DownloadLoadAllEvent event,
+    Emitter<DownloadState> emit,
+  ) async {
     final downloads = await DatabaseService.instance.getAllDownloads();
     final completedMap = <String, String>{};
     for (var d in downloads) {
@@ -68,16 +75,20 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     emit(state.copyWith(completed: completedMap, downloadedTracks: downloads));
   }
 
-  Future<void> _onStart(DownloadStartEvent event, Emitter<DownloadState> emit) async {
+  Future<void> _onStart(
+    DownloadStartEvent event,
+    Emitter<DownloadState> emit,
+  ) async {
     final track = event.track;
     final videoId = track['videoId'];
     if (videoId == null) return;
 
-    if (state.completed.containsKey(videoId) || state.progress.containsKey(videoId)) {
+    if (state.completed.containsKey(videoId) ||
+        state.progress.containsKey(videoId)) {
       return; // Already downloading or downloaded
     }
 
-    // Set 0% progress initial
+    // Set initial progress
     final newProgress = Map<String, double>.from(state.progress);
     newProgress[videoId] = 0.01;
     emit(state.copyWith(progress: newProgress));
@@ -91,50 +102,55 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
       }
 
       try {
-        final status = await Permission.audio.request();
-        final storageStatus = await Permission.storage.request();
-        
-        if (status.isDenied && storageStatus.isDenied) {
-          // Both are denied, try requesting manageExternalStorage for Android 11+
-          final manageStatus = await Permission.manageExternalStorage.request();
-          if (manageStatus.isDenied) {
-             _failDownload(videoId);
-             return;
-          }
-        }
-
         Directory? dir;
         if (Platform.isAndroid) {
-           dir = Directory('/storage/emulated/0/Music/Ember');
-           if (!await dir.exists()) {
-             await dir.create(recursive: true);
-           }
-        } else {
-           dir = await getApplicationDocumentsDirectory();
+          try {
+            final extDirs = await getExternalStorageDirectories(
+              type: StorageDirectory.music,
+            );
+            if (extDirs != null && extDirs.isNotEmpty) {
+              dir = extDirs.first;
+            }
+          } catch (_) {}
         }
-        
-        final safeTitle = track['title']?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '') ?? videoId;
+        dir ??= await getApplicationDocumentsDirectory();
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+
+        final safeTitle =
+            track['title']?.replaceAll(RegExp(r'[\\/:*?"<>|]'), '') ?? videoId;
         final filePath = '${dir.path}/$safeTitle.m4a';
 
-        await _dio.download(url, filePath, onReceiveProgress: (rec, total) {
-          if (total != -1) {
-             // Avoid emitting many state changes here
-          }
-        });
+        await _dio.download(
+          url,
+          filePath,
+          onReceiveProgress: (rec, total) {
+            if (total != -1) {
+              // Avoid emitting many state changes here
+            }
+          },
+        );
 
         await DatabaseService.instance.addDownload(track, filePath);
-        
+
         final finalProgress = Map<String, double>.from(state.progress);
         finalProgress.remove(videoId);
-        
+
         final finalCompleted = Map<String, String>.from(state.completed);
         finalCompleted[videoId] = filePath;
 
         final downloads = await DatabaseService.instance.getAllDownloads();
-        
-        // Ensure we invoke emit safely 
-        if (!isClosed) emit(state.copyWith(progress: finalProgress, completed: finalCompleted, downloadedTracks: downloads));
 
+        // Ensure we invoke emit safely
+        if (!isClosed)
+          emit(
+            state.copyWith(
+              progress: finalProgress,
+              completed: finalCompleted,
+              downloadedTracks: downloads,
+            ),
+          );
       } catch (e) {
         _failDownload(videoId);
       }
@@ -150,17 +166,20 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
     add(DownloadLoadAllEvent()); // flush state safely by reloading dummy
   }
 
-  Future<void> _onRemove(DownloadRemoveEvent event, Emitter<DownloadState> emit) async {
+  Future<void> _onRemove(
+    DownloadRemoveEvent event,
+    Emitter<DownloadState> emit,
+  ) async {
     final videoId = event.videoId;
-    
+
     final dbDownload = await DatabaseService.instance.getDownload(videoId);
     if (dbDownload != null) {
-       final file = File(dbDownload['filePath'] as String);
-       if (file.existsSync()) {
-         file.deleteSync();
-       }
+      final file = File(dbDownload['filePath'] as String);
+      if (file.existsSync()) {
+        file.deleteSync();
+      }
     }
-    
+
     await DatabaseService.instance.removeDownload(videoId);
     add(DownloadLoadAllEvent());
   }

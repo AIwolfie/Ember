@@ -16,17 +16,24 @@ class HistoryScreen extends StatelessWidget {
 
   void _playSong(BuildContext context, Map<String, String> track) {
     context.read<AudioBloc>().add(AudioPlayQueue([track], startIndex: 0));
-    
+
     // Also push the player screen
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const FullPlayerScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const FullPlayerScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = Offset(0.0, 1.0);
           const end = Offset.zero;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.fastOutSlowIn));
-          return SlideTransition(position: animation.drive(tween), child: child);
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: Curves.fastOutSlowIn));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
         },
       ),
     );
@@ -37,16 +44,24 @@ class HistoryScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: YTColors.background,
       appBar: AppBar(
-        title: const Text('Recent History', style: TextStyle(color: YTColors.primary, fontWeight: FontWeight.bold)),
+        title: Text(
+          'Recent History',
+          style: TextStyle(
+            color: YTColors.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: YTColors.background,
         elevation: 0,
-        leading: const BackButton(color: YTColors.primary),
+        leading: BackButton(color: YTColors.primary),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline, color: YTColors.secondary),
             onPressed: () {
               context.read<StorageBloc>().add(StorageClearPlayHistory());
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('History cleared')));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('History cleared')));
             },
           ),
           const SizedBox(width: 8),
@@ -57,7 +72,7 @@ class HistoryScreen extends StatelessWidget {
           BlocBuilder<StorageBloc, StorageState>(
             builder: (context, storageState) {
               final history = storageState.playHistory;
-              
+
               if (history.isEmpty) {
                 return const Center(
                   child: Column(
@@ -65,12 +80,15 @@ class HistoryScreen extends StatelessWidget {
                     children: [
                       Icon(Icons.history, size: 64, color: Colors.white24),
                       SizedBox(height: 16),
-                      Text("No recently played songs.", style: TextStyle(color: Colors.white54, fontSize: 16)),
+                      Text(
+                        "No recently played songs.",
+                        style: TextStyle(color: Colors.white54, fontSize: 16),
+                      ),
                     ],
                   ),
                 );
               }
-              
+
               return ListView.builder(
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.only(bottom: 100, top: 16),
@@ -78,7 +96,10 @@ class HistoryScreen extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final track = history[index];
                   return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     leading: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: CachedNetworkImage(
@@ -86,23 +107,48 @@ class HistoryScreen extends StatelessWidget {
                         width: 56,
                         height: 56,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(width: 56, height: 56, color: YTColors.surfaceLight),
+                        placeholder: (context, url) => Container(
+                          width: 56,
+                          height: 56,
+                          color: YTColors.surfaceLight,
+                        ),
                         errorWidget: (context, error, stackTrace) => Container(
                           width: 56,
                           height: 56,
                           color: YTColors.surface,
-                          child: const Icon(Icons.music_note, color: YTColors.secondary),
+                          child: const Icon(
+                            Icons.music_note,
+                            color: YTColors.secondary,
+                          ),
                         ),
                       ),
                     ),
-                    title: Text(track['title'] ?? 'Unknown', maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: YTColors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
+                    title: Text(
+                      track['title'] ?? 'Unknown',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: YTColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(track['artist'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: YTColors.secondary, fontSize: 14)),
+                      child: Text(
+                        track['artist'] ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: YTColors.secondary,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
-                    trailing: const Icon(Icons.play_arrow_rounded, color: YTColors.secondary),
+                    trailing: const Icon(
+                      Icons.play_arrow_rounded,
+                      color: YTColors.secondary,
+                    ),
                     onTap: () => _playSong(context, track),
                   );
                 },
@@ -110,8 +156,10 @@ class HistoryScreen extends StatelessWidget {
             },
           ),
           const Positioned(
-            left: 0, right: 0, bottom: 0,
-            child: SafeArea(top: false, child: MiniPlayer())
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(top: false, child: MiniPlayer()),
           ),
         ],
       ),

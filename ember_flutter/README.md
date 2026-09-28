@@ -1,48 +1,100 @@
-# Ember
+# 🕯️ Ember Mobile (Android)
 
-Ember is a premium music application built with Flutter, designed with a modern, dynamic UI inspired by YouTube Music. It provides a robust, seamless audio experience with advanced features bridging seamlessly with a powerful Python backend.
+<p align="center">
+  <a href="https://github.com/AIwolfie/Ember/releases/latest">
+    <img src="https://img.shields.io/badge/⬇️_Download_Release-Ember.apk-3ddc84?style=for-the-badge&logo=android&logoColor=17120e" alt="Download Android APK"/>
+  </a>
+  <a href="https://github.com/AIwolfie/Ember/releases/latest">
+    <img src="https://img.shields.io/badge/Release-v1.0.0_Ready-10b981?style=for-the-badge&logo=github&labelColor=2b231d" alt="GitHub Release"/>
+  </a>
+  <img src="https://img.shields.io/badge/Platform-Android_5.0+-2b231d?style=for-the-badge&logo=android&logoColor=3ddc84&labelColor=17120e" alt="Android Support"/>
+  <img src="https://img.shields.io/badge/Engine-Flutter_3_+_Chaquopy-02569b?style=for-the-badge&logo=flutter&logoColor=white&labelColor=17120e" alt="Flutter & Chaquopy"/>
+  <img src="https://img.shields.io/badge/License-MIT-d97706?style=for-the-badge&labelColor=17120e" alt="MIT License"/>
+</p>
+
+Ember Mobile is the companion Android music streaming client for Ember, built with Flutter and powered by Chaquopy Python. It brings the same warm, cozy desktop listening experience into your pocket with zero ads, high-fidelity audio streams, and intuitive gesture-based navigation.
+
+---
 
 ## ✨ Key Features
 
-- **Premium UI/UX:** A visually stunning interface featuring cinematic parallax headers, dynamic "Top Result" search cards, and a polished, gesture-driven bottom sheet transition for the full music player.
-- **Intelligent Search:** Provides precise search capabilities, including accurate artist clustering, robust exact song matching, and fuzzy string matching for handling typos natively.
-- **Synced Lyrics:** Integration with the LRCLIB API to serve accurate, real-time timestamped lyrics corresponding to your active playback.
-- **Playlist Import:** Seamlessly import your favorite tracks and playlists from platforms like Spotify and YouTube Music directly via URL.
-- **Optimized Android Performance:** Carefully tuned and optimized build configurations utilizing R8 shrinking, ProGuard rules, and specific ABI filters to maintain an agile Android release footprint (~50MB) without compromising functionality.
+- **📱 4-Tab Unified Navigation:**
+  - **Home:** Personalized recommendations, mood chips, quick picks grid, and artist rows.
+  - **Search:** Instant real-time search with fuzzy matching, artist clustering, and link detection.
+  - **Library:** Complete collection management with interactive filter pills (`Playlists`, `Favorites`, `History`, `Downloads`), horizontal favorites carousel, and custom playlists.
+  - **About:** Clean app details, features breakdown, open-source repository link, and developer credits.
+- **🎨 5 Dynamic Theme Palettes:** Choose your vibe in Settings with instant live switching across `Amber` (default), `Emerald`, `Amethyst`, `Solar`, and `Rose`.
+- **🎤 Synchronized Lyrics:** Real-time timestamped karaoke-style lyrics powered by LRCLIB.
+- **🎛️ Equalizer & Audio Pipeline:** Built-in Android equalizer with customizable band controls.
+- **🔗 Playlist URL Importer:** Paste YouTube Music, YouTube, or Spotify playlist links to stream or save to your local library.
+- **🎧 Background Playback & SMTC:** Continuous playback with full Android system notifications, lockscreen controls, and Bluetooth headset media actions.
+- **⚡ Offline-Ready Architecture:** SQLite local caching and optimized R8 shrinking to keep the APK agile and lightweight.
 
-## 🛠 Tech Stack & Architecture
+---
 
-- **Frontend:** Flutter (`^3.13.4`) utilizing `flutter_bloc` and `provider` for state management.
-- **Audio Engine:** `just_audio` and `just_audio_background` for reliable, background-capable media streaming and an immersive native media notification experience.
-- **Dynamic Assets:** `cached_network_image`, `shimmer`, and `palette_generator` to generate dynamic background colors matching the album art.
-- **Backend Bridge:** Relies on a Python backend architecture handling heavy metadata parsing, unified search logic, and fetching platform-specific audio streams to keep the mobile client nimble.
+## 🚀 Download & Installation
 
-## 🚀 Getting Started
+### Option 1: Direct APK Download (Recommended)
+1. Go to [Ember Releases](https://github.com/AIwolfie/Ember/releases/latest).
+2. Download **`Ember.apk`**.
+3. Open the APK on your Android phone and install.
+
+---
+
+## 🛠️ Build from Source
 
 ### Prerequisites
-- Flutter SDK `^3.13.4`
-- Dart SDK
-- Android SDK (min_sdk: 21)
+- [Flutter SDK](https://flutter.dev) (v3.13.4+)
+- Android SDK (API 21+ / Android 5.0+)
+- Java JDK 17
 
-### Installation
+### Development Run
+```bash
+# 1. Clone & enter the folder
+cd ember_flutter
 
-1. Navigate to the project directory:
-   ```bash
-   cd ember_flutter
-   ```
+# 2. Get dependencies
+flutter pub get
 
-2. Fetch the required dependencies:
-   ```bash
-   flutter pub get
-   ```
+# 3. Launch on a connected device
+flutter run
+```
 
-3. Run the application:
-   ```bash
-   flutter run
-   ```
+### Packaging Release APK
 
-## 📦 Core Dependencies
-- audio operations: `just_audio`, `audio_session`, `just_audio_background`
-- network/storage: `dio`, `sqflite`, `path_provider`
-- UI mapping & design: `google_fonts`, `cupertino_icons`, `shimmer`
-- state handling: `rxdart`, `equatable`, `easy_debounce`
+```bash
+# Standard universal release APK:
+flutter build apk --release
+
+# Output path:
+# build/app/outputs/flutter-apk/app-release.apk
+```
+
+For smaller per-architecture split APKs (~25MB each):
+```bash
+flutter build apk --split-per-abi
+
+# Output:
+# app-armeabi-v7a-release.apk
+# app-arm64-v8a-release.apk
+# app-x86_64-release.apk
+```
+
+---
+
+## 📦 Core Stack & Architecture
+
+- **State Management:** `flutter_bloc` 9.1.1 + `provider`
+- **Audio Playback:** `just_audio` + `just_audio_background` + `audio_session`
+- **Python Bridge:** Native Chaquopy running guest catalog resolution and yt-dlp stream extraction
+- **Local Storage:** `sqflite` + `path_provider`
+- **Design & Typography:** Google Fonts (Inter), `shimmer`, `palette_generator`, `cached_network_image`
+
+---
+
+## 🤝 Creators & Contributors
+
+- **Mayank Malaviya** — *Code Architect & Original Creator of Ember* · [aiwolfie.online](https://aiwolfie.online)
+- **Kenil Ribadiya** — *Mobile App Architect & Developer* · [kenilribadiya.in](https://kenilribadiya.in/)
+
+Distributed under the [MIT License](../LICENSE).

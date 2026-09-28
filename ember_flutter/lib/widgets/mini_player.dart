@@ -59,7 +59,9 @@ class MiniPlayer extends StatelessWidget {
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
               child: Container(
-                color: state.dominantColor?.withValues(alpha: 0.75) ?? YTColors.surface.withValues(alpha: 0.85),
+                color:
+                    state.dominantColor?.withValues(alpha: 0.75) ??
+                    YTColors.surface.withValues(alpha: 0.85),
                 height: 64,
                 child: Stack(
                   children: [
@@ -74,12 +76,19 @@ class MiniPlayer extends StatelessWidget {
                               width: 44,
                               height: 44,
                               fit: BoxFit.cover,
-                              placeholder: (c, u) => Container(width: 44, height: 44, color: YTColors.surfaceLight),
+                              placeholder: (c, u) => Container(
+                                width: 44,
+                                height: 44,
+                                color: YTColors.surfaceLight,
+                              ),
                               errorWidget: (c, e, s) => Container(
                                 width: 44,
                                 height: 44,
                                 color: YTColors.surfaceLight,
-                                child: const Icon(Icons.music_note, color: YTColors.secondary),
+                                child: const Icon(
+                                  Icons.music_note,
+                                  color: YTColors.secondary,
+                                ),
                               ),
                             ),
                           ),
@@ -93,25 +102,42 @@ class MiniPlayer extends StatelessWidget {
                                   track['title'] ?? 'Unknown',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontWeight: FontWeight.w500, color: YTColors.primary, fontSize: 15),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    color: YTColors.primary,
+                                    fontSize: 15,
+                                  ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   track['artist'] ?? 'Unknown Artist',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: YTColors.secondary, fontSize: 13),
+                                  style: const TextStyle(
+                                    color: YTColors.secondary,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                           BlocBuilder<StorageBloc, StorageState>(
                             builder: (context, storage) {
-                              final isFav = storage.isFavorite(track['videoId']!);
+                              final isFav = storage.isFavorite(
+                                track['videoId']!,
+                              );
                               return IconButton(
-                                icon: Icon(isFav ? Icons.thumb_up : Icons.thumb_up_outlined, color: YTColors.primary, size: 20),
+                                icon: Icon(
+                                  isFav
+                                      ? Icons.thumb_up
+                                      : Icons.thumb_up_outlined,
+                                  color: YTColors.primary,
+                                  size: 20,
+                                ),
                                 onPressed: () {
-                                  context.read<StorageBloc>().add(StorageToggleFavorite(track));
+                                  context.read<StorageBloc>().add(
+                                    StorageToggleFavorite(track),
+                                  );
                                 },
                               );
                             },
@@ -119,34 +145,56 @@ class MiniPlayer extends StatelessWidget {
                           Builder(
                             builder: (context) {
                               Widget playPauseBtn;
-                              if (processingState == ProcessingState.loading || processingState == ProcessingState.buffering) {
-                                playPauseBtn = const Padding(
-                                  key: ValueKey('loading'),
-                                  padding: EdgeInsets.all(12.0),
-                                  child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: YTColors.primary)),
+                              if (processingState == ProcessingState.loading ||
+                                  processingState ==
+                                      ProcessingState.buffering) {
+                                playPauseBtn = Padding(
+                                  key: const ValueKey('loading'),
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: YTColors.primary,
+                                    ),
+                                  ),
                                 );
                               } else if (playing) {
                                 playPauseBtn = IconButton(
                                   key: const ValueKey('pause'),
-                                  icon: const Icon(Icons.pause, color: YTColors.primary, size: 28),
+                                  icon: Icon(
+                                    Icons.pause,
+                                    color: YTColors.primary,
+                                    size: 28,
+                                  ),
                                   onPressed: () => audioBloc.add(AudioPause()),
                                 );
                               } else {
                                 playPauseBtn = IconButton(
                                   key: const ValueKey('play'),
-                                  icon: const Icon(Icons.play_arrow, color: YTColors.primary, size: 28),
+                                  icon: Icon(
+                                    Icons.play_arrow,
+                                    color: YTColors.primary,
+                                    size: 28,
+                                  ),
                                   onPressed: () => audioBloc.add(AudioResume()),
                                 );
                               }
                               return AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 250),
-                                transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                                transitionBuilder: (child, anim) =>
+                                    ScaleTransition(scale: anim, child: child),
                                 child: playPauseBtn,
                               );
                             },
                           ),
                           IconButton(
-                            icon: const Icon(Icons.skip_next, color: YTColors.primary, size: 28),
+                            icon: Icon(
+                              Icons.skip_next,
+                              color: YTColors.primary,
+                              size: 28,
+                            ),
                             onPressed: () => audioBloc.add(AudioSeekToNext()),
                           ),
                         ],
@@ -166,13 +214,17 @@ class MiniPlayer extends StatelessWidget {
                               final position = posSnap.data ?? Duration.zero;
                               double progress = 0.0;
                               if (duration.inMilliseconds > 0) {
-                                progress = position.inMilliseconds / duration.inMilliseconds;
+                                progress =
+                                    position.inMilliseconds /
+                                    duration.inMilliseconds;
                                 progress = progress.clamp(0.0, 1.0);
                               }
                               return LinearProgressIndicator(
                                 value: progress,
                                 backgroundColor: Colors.transparent,
-                                valueColor: const AlwaysStoppedAnimation<Color>(YTColors.primary),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  YTColors.primary,
+                                ),
                                 minHeight: 1.5,
                               );
                             },

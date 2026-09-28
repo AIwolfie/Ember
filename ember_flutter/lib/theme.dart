@@ -1,66 +1,212 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'services/database_service.dart';
+
+class EmberThemeOption {
+  final String id;
+  final String name;
+  final String description;
+  final Color primary;
+  final Color accent;
+  final Color background;
+  final Color surface;
+  final Color surfaceLight;
+
+  const EmberThemeOption({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.primary,
+    required this.accent,
+    required this.background,
+    required this.surface,
+    required this.surfaceLight,
+  });
+}
+
+class EmberThemes {
+  static const amber = EmberThemeOption(
+    id: 'amber',
+    name: 'Amber',
+    description: 'Warm golden amber & deep roasted espresso',
+    primary: Color(0xFFFF9100),
+    accent: Color(0xFFFFA726),
+    background: Color(0xFF0D0A08),
+    surface: Color(0xFF1E1712),
+    surfaceLight: Color(0xFF2E221A),
+  );
+
+  static const emerald = EmberThemeOption(
+    id: 'emerald',
+    name: 'Emerald',
+    description: 'Forest moss, midnight pine & radiant emerald glow',
+    primary: Color(0xFF00E676),
+    accent: Color(0xFF69F0AE),
+    background: Color(0xFF070E0A),
+    surface: Color(0xFF101C14),
+    surfaceLight: Color(0xFF1B2D20),
+  );
+
+  static const amethyst = EmberThemeOption(
+    id: 'amethyst',
+    name: 'Amethyst',
+    description: 'Velvet twilight & mystical violet luminescence',
+    primary: Color(0xFFB388FF),
+    accent: Color(0xFFD1C4E9),
+    background: Color(0xFF0D0A14),
+    surface: Color(0xFF1A1426),
+    surfaceLight: Color(0xFF2B203D),
+  );
+
+  static const solar = EmberThemeOption(
+    id: 'solar',
+    name: 'Solar',
+    description: 'Sun-baked terracotta, warm earth & solar fire',
+    primary: Color(0xFFFF6D00),
+    accent: Color(0xFFFFAB40),
+    background: Color(0xFF100905),
+    surface: Color(0xFF22150E),
+    surfaceLight: Color(0xFF332015),
+  );
+
+  static const rose = EmberThemeOption(
+    id: 'rose',
+    name: 'Rose',
+    description: 'Smoky plum, evening rouge & soft blush accents',
+    primary: Color(0xFFFF4081),
+    accent: Color(0xFFFF80AB),
+    background: Color(0xFF12070D),
+    surface: Color(0xFF22111A),
+    surfaceLight: Color(0xFF361B29),
+  );
+
+  static const List<EmberThemeOption> all = [
+    amber,
+    emerald,
+    amethyst,
+    solar,
+    rose,
+  ];
+
+  static EmberThemeOption fromId(String? id) {
+    if (id == null) return amber;
+    return all.firstWhere((t) => t.id == id, orElse: () => amber);
+  }
+}
+
+class ThemeCubit extends Cubit<EmberThemeOption> {
+  ThemeCubit() : super(EmberThemes.amber) {
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    try {
+      final savedId = await DatabaseService.instance.getCache('app_theme');
+      if (savedId != null) {
+        final theme = EmberThemes.fromId(savedId);
+        YTColors.current = theme;
+        emit(theme);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> setTheme(EmberThemeOption theme) async {
+    YTColors.current = theme;
+    emit(theme);
+    try {
+      await DatabaseService.instance.setCache('app_theme', theme.id);
+    } catch (_) {}
+  }
+}
+
 class YTColors {
-  static const Color background = Color(0xFF030303);
-  static const Color surface = Color(0xFF212121);
-  static const Color surfaceLight = Color(0xFF383838);
-  static const Color primary = Colors.white;
+  static EmberThemeOption current = EmberThemes.amber;
+
+  static Color get background => current.background;
+  static Color get surface => current.surface;
+  static Color get surfaceLight => current.surfaceLight;
+  static Color get primary => current.primary;
+  static Color get accent => current.accent;
   static const Color secondary = Colors.white70;
   static const Color disabled = Colors.white30;
   static const Color divider = Color(0xFF2C2C2C);
-  static const Color accent = Colors.white; 
 }
 
 class YTTheme {
-  static ThemeData get darkTheme {
+  static ThemeData getTheme(EmberThemeOption theme) {
     final baseTheme = ThemeData(
       brightness: Brightness.dark,
-      primaryColor: YTColors.primary,
-      scaffoldBackgroundColor: YTColors.background,
+      primaryColor: theme.primary,
+      scaffoldBackgroundColor: theme.background,
       useMaterial3: true,
-      colorScheme: const ColorScheme.dark(
-        primary: YTColors.primary,
-        surface: YTColors.surface,
+      colorScheme: ColorScheme.dark(
+        primary: theme.primary,
+        surface: theme.surface,
+        secondary: theme.accent,
       ),
     );
 
     return baseTheme.copyWith(
-      textTheme: GoogleFonts.interTextTheme(baseTheme.textTheme).apply(
-        bodyColor: YTColors.primary,
-        displayColor: YTColors.primary,
-      ).copyWith(
-        displayLarge: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 32, letterSpacing: -1.0, color: YTColors.primary),
-        displayMedium: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 24, letterSpacing: -0.5, color: YTColors.primary),
-        bodyLarge: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 16, color: YTColors.primary),
-        bodyMedium: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 14, color: YTColors.secondary),
-        titleMedium: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16, color: YTColors.primary),
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: YTColors.background,
+      textTheme: GoogleFonts.interTextTheme(baseTheme.textTheme)
+          .apply(bodyColor: Colors.white, displayColor: Colors.white)
+          .copyWith(
+            displayLarge: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              fontSize: 32,
+              letterSpacing: -1.0,
+              color: Colors.white,
+            ),
+            displayMedium: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+              letterSpacing: -0.5,
+              color: Colors.white,
+            ),
+            bodyLarge: GoogleFonts.inter(
+              fontWeight: FontWeight.w500,
+              fontSize: 16,
+              color: Colors.white,
+            ),
+            bodyMedium: GoogleFonts.inter(
+              fontWeight: FontWeight.w400,
+              fontSize: 14,
+              color: YTColors.secondary,
+            ),
+            titleMedium: GoogleFonts.inter(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              color: Colors.white,
+            ),
+          ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: theme.background,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: YTColors.surface,
-        selectedItemColor: YTColors.primary,
-        unselectedItemColor: YTColors.secondary,
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: theme.surface,
+        selectedItemColor: theme.primary,
+        unselectedItemColor: Colors.white54,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: YTColors.surfaceLight,
-        contentTextStyle: TextStyle(color: YTColors.primary),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: theme.surfaceLight,
+        contentTextStyle: const TextStyle(color: Colors.white),
       ),
       sliderTheme: SliderThemeData(
-        activeTrackColor: YTColors.primary,
+        activeTrackColor: theme.primary,
         inactiveTrackColor: YTColors.disabled,
-        thumbColor: YTColors.primary,
-        overlayColor: YTColors.primary.withValues(alpha: 0.12),
+        thumbColor: theme.primary,
+        overlayColor: theme.primary.withValues(alpha: 0.12),
         trackHeight: 2.0,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
         overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
       ),
     );
   }
+
+  static ThemeData get darkTheme => getTheme(EmberThemes.amber);
 }
