@@ -43,18 +43,27 @@ class FullPlayerScreen extends StatelessWidget {
               maxChildSize: 0.95,
               builder: (_, controller) {
                 return Container(
-                  color: YTColors.surface.withValues(alpha: 0.5), // Glassmorphism base
+                  color: YTColors.surface.withValues(
+                    alpha: 0.5,
+                  ), // Glassmorphism base
                   child: Column(
                     children: [
                       Container(
                         margin: const EdgeInsets.symmetric(vertical: 12),
                         width: 40,
                         height: 5,
-                        decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       const Text(
                         'Up Next',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Expanded(
@@ -68,16 +77,27 @@ class FullPlayerScreen extends StatelessWidget {
                                 if (oldIndex < newIndex) {
                                   newIndex -= 1;
                                 }
-                                final item = audioState.queue.removeAt(oldIndex);
+                                final item = audioState.queue.removeAt(
+                                  oldIndex,
+                                );
                                 audioState.queue.insert(newIndex, item);
-                                context.read<AudioBloc>().add(AudioUpdateQueue(audioState.queue));
+                                context.read<AudioBloc>().add(
+                                  AudioUpdateQueue(audioState.queue),
+                                );
                               },
                               itemBuilder: (context, index) {
                                 final queueTrack = audioState.queue[index];
-                                final isCurrent = queueTrack['videoId'] == audioState.currentTrack?['videoId'];
+                                final isCurrent =
+                                    queueTrack['videoId'] ==
+                                    audioState.currentTrack?['videoId'];
                                 return ListTile(
-                                  key: ValueKey('${queueTrack['videoId']}_$index'),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                                  key: ValueKey(
+                                    '${queueTrack['videoId']}_$index',
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 4,
+                                  ),
                                   leading: ClipRRect(
                                     borderRadius: BorderRadius.circular(4),
                                     child: CachedNetworkImage(
@@ -85,30 +105,54 @@ class FullPlayerScreen extends StatelessWidget {
                                       width: 48,
                                       height: 48,
                                       fit: BoxFit.cover,
-                                      placeholder: (context, url) => Container(width: 48, height: 48, color: YTColors.surfaceLight),
-                                      errorWidget: (context, error, stackTrace) => Container(width: 48, height: 48, color: YTColors.surfaceLight),
+                                      placeholder: (context, url) => Container(
+                                        width: 48,
+                                        height: 48,
+                                        color: YTColors.surfaceLight,
+                                      ),
+                                      errorWidget:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                                width: 48,
+                                                height: 48,
+                                                color: YTColors.surfaceLight,
+                                              ),
                                     ),
                                   ),
                                   title: Text(
                                     queueTrack['title'] ?? 'Unknown',
                                     style: TextStyle(
-                                      color: isCurrent ? YTColors.primary : YTColors.secondary,
-                                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                      color: isCurrent
+                                          ? YTColors.primary
+                                          : YTColors.secondary,
+                                      fontWeight: isCurrent
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   subtitle: Text(
                                     '${queueTrack['artist']} • ${queueTrack['duration']}',
-                                    style: const TextStyle(color: YTColors.disabled),
+                                    style: const TextStyle(
+                                      color: YTColors.disabled,
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   trailing: isCurrent
-                                      ? const Icon(Icons.volume_up, color: YTColors.primary)
-                                      : const Icon(Icons.drag_handle, color: YTColors.disabled),
+                                      ? Icon(
+                                          Icons.volume_up,
+                                          color: YTColors.primary,
+                                        )
+                                      : const Icon(
+                                          Icons.drag_handle,
+                                          color: YTColors.disabled,
+                                        ),
                                   onTap: () {
-                                    context.read<AudioBloc>().add(AudioJumpToQueueIndex(index));
+                                    context.read<AudioBloc>().add(
+                                      AudioJumpToQueueIndex(index),
+                                    );
                                     Navigator.pop(ctx);
                                   },
                                 );
@@ -128,7 +172,11 @@ class FullPlayerScreen extends StatelessWidget {
     );
   }
 
-  void _showLyricsSheet(BuildContext context, Map<String, String> track, AudioBloc audioBloc) {
+  void _showLyricsSheet(
+    BuildContext context,
+    Map<String, String> track,
+    AudioBloc audioBloc,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -149,10 +197,13 @@ class FullPlayerScreen extends StatelessWidget {
         final track = state.currentTrack;
 
         if (track == null) {
-          return const Scaffold(
+          return Scaffold(
             backgroundColor: YTColors.background,
             body: Center(
-              child: Text("No track playing", style: TextStyle(color: YTColors.primary)),
+              child: Text(
+                "No track playing",
+                style: TextStyle(color: YTColors.primary),
+              ),
             ),
           );
         }
@@ -166,7 +217,11 @@ class FullPlayerScreen extends StatelessWidget {
             backgroundColor: Colors.transparent,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 32),
+              icon: const Icon(
+                Icons.keyboard_arrow_down,
+                color: Colors.white,
+                size: 32,
+              ),
               onPressed: () => Navigator.pop(context),
             ),
             actions: [],
@@ -193,7 +248,11 @@ class FullPlayerScreen extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [state.dominantColor?.withValues(alpha: 0.6) ?? Colors.transparent, YTColors.background],
+                      colors: [
+                        state.dominantColor?.withValues(alpha: 0.6) ??
+                            Colors.transparent,
+                        YTColors.background,
+                      ],
                       stops: const [0.2, 1.0],
                     ),
                   ),
@@ -214,17 +273,28 @@ class FullPlayerScreen extends StatelessWidget {
                             aspectRatio: 1.0,
                             child: Container(
                               decoration: BoxDecoration(
-                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 30, offset: const Offset(0, 15))],
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.4),
+                                    blurRadius: 30,
+                                    offset: const Offset(0, 15),
+                                  ),
+                                ],
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
                                 child: CachedNetworkImage(
                                   imageUrl: track['artworkUrl'] ?? '',
                                   fit: BoxFit.cover,
-                                  errorWidget: (context, error, stack) => Container(
-                                    color: YTColors.surface,
-                                    child: const Icon(Icons.music_note, color: YTColors.secondary, size: 80),
-                                  ),
+                                  errorWidget: (context, error, stack) =>
+                                      Container(
+                                        color: YTColors.surface,
+                                        child: const Icon(
+                                          Icons.music_note,
+                                          color: YTColors.secondary,
+                                          size: 80,
+                                        ),
+                                      ),
                                 ),
                               ),
                             ),
@@ -243,14 +313,24 @@ class FullPlayerScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   track['title'] ?? 'Unknown Title',
-                                  style: Theme.of(context).textTheme.displayMedium?.copyWith(fontSize: 26, color: Colors.white),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .displayMedium
+                                      ?.copyWith(
+                                        fontSize: 26,
+                                        color: Colors.white,
+                                      ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
                                   track['artist'] ?? 'Unknown Artist',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 18, color: Colors.white70),
+                                  style: Theme.of(context).textTheme.bodyLarge
+                                      ?.copyWith(
+                                        fontSize: 18,
+                                        color: Colors.white70,
+                                      ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -269,18 +349,25 @@ class FullPlayerScreen extends StatelessWidget {
                           children: [
                             BlocBuilder<StorageBloc, StorageState>(
                               builder: (context, storageState) {
-                                final isFav = storageState.isFavorite(track['videoId']!);
+                                final isFav = storageState.isFavorite(
+                                  track['videoId']!,
+                                );
                                 return _buildPillButton(
-                                  icon: isFav ? Icons.favorite : Icons.favorite_border,
+                                  icon: isFav
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
                                   label: 'Like',
-                                  onTap: () => context.read<StorageBloc>().add(StorageToggleFavorite(track)),
+                                  onTap: () => context.read<StorageBloc>().add(
+                                    StorageToggleFavorite(track),
+                                  ),
                                 );
                               },
                             ),
                             _buildPillButton(
                               icon: Icons.playlist_add,
                               label: 'Save',
-                              onTap: () => showPlaylistSheet(context, track: track),
+                              onTap: () =>
+                                  showPlaylistSheet(context, track: track),
                             ),
                           ],
                         ),
@@ -301,30 +388,64 @@ class FullPlayerScreen extends StatelessWidget {
                               return Column(
                                 children: [
                                   SliderTheme(
-                                    data: YTTheme.darkTheme.sliderTheme.copyWith(
-                                      trackHeight: 2,
-                                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-                                    ),
+                                    data: YTTheme.darkTheme.sliderTheme
+                                        .copyWith(
+                                          trackHeight: 2,
+                                          thumbShape:
+                                              const RoundSliderThumbShape(
+                                                enabledThumbRadius: 6,
+                                              ),
+                                          overlayShape:
+                                              const RoundSliderOverlayShape(
+                                                overlayRadius: 14,
+                                              ),
+                                        ),
                                     child: Slider(
                                       min: 0.0,
-                                      max: duration.inMilliseconds.toDouble() > 0 ? duration.inMilliseconds.toDouble() : 1.0,
-                                      value: (position.inMilliseconds.toDouble()).clamp(
-                                        0.0,
-                                        duration.inMilliseconds.toDouble() > 0 ? duration.inMilliseconds.toDouble() : 1.0,
-                                      ),
+                                      max:
+                                          duration.inMilliseconds.toDouble() > 0
+                                          ? duration.inMilliseconds.toDouble()
+                                          : 1.0,
+                                      value:
+                                          (position.inMilliseconds.toDouble())
+                                              .clamp(
+                                                0.0,
+                                                duration.inMilliseconds
+                                                            .toDouble() >
+                                                        0
+                                                    ? duration.inMilliseconds
+                                                          .toDouble()
+                                                    : 1.0,
+                                              ),
                                       onChanged: (value) {
-                                        audioBloc.player.seek(Duration(milliseconds: value.round()));
+                                        audioBloc.player.seek(
+                                          Duration(milliseconds: value.round()),
+                                        );
                                       },
                                     ),
                                   ),
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0,
+                                    ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(_formatDuration(position), style: const TextStyle(color: YTColors.secondary, fontSize: 12)),
-                                        Text(_formatDuration(duration), style: const TextStyle(color: YTColors.secondary, fontSize: 12)),
+                                        Text(
+                                          _formatDuration(position),
+                                          style: const TextStyle(
+                                            color: YTColors.secondary,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        Text(
+                                          _formatDuration(duration),
+                                          style: const TextStyle(
+                                            color: YTColors.secondary,
+                                            fontSize: 12,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -342,39 +463,58 @@ class FullPlayerScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.shuffle, color: YTColors.secondary),
+                            icon: const Icon(
+                              Icons.shuffle,
+                              color: YTColors.secondary,
+                            ),
                             onPressed: () {},
                           ),
                           IconButton(
-                            icon: const Icon(Icons.skip_previous, color: YTColors.primary, size: 40),
-                            onPressed: () => audioBloc.add(AudioSeekToPrevious()),
+                            icon: Icon(
+                              Icons.skip_previous,
+                              color: YTColors.primary,
+                              size: 40,
+                            ),
+                            onPressed: () =>
+                                audioBloc.add(AudioSeekToPrevious()),
                           ),
                           Builder(
                             builder: (context) {
                               final playerState = state.playerState;
-                              final processingState = playerState?.processingState;
+                              final processingState =
+                                  playerState?.processingState;
                               final playing = playerState?.playing ?? false;
 
                               Widget playButton;
-                              if (processingState == ProcessingState.loading || processingState == ProcessingState.buffering) {
+                              if (processingState == ProcessingState.loading ||
+                                  processingState ==
+                                      ProcessingState.buffering) {
                                 playButton = Container(
                                   key: const ValueKey('loading'),
                                   margin: const EdgeInsets.all(8.0),
                                   width: 64.0,
                                   height: 64.0,
-                                  child: const CircularProgressIndicator(color: YTColors.primary),
+                                  child: CircularProgressIndicator(
+                                    color: YTColors.primary,
+                                  ),
                                 );
                               } else if (playing) {
                                 playButton = IconButton(
                                   key: const ValueKey('pause'),
-                                  icon: const Icon(Icons.pause_circle_filled, color: YTColors.primary),
+                                  icon: Icon(
+                                    Icons.pause_circle_filled,
+                                    color: YTColors.primary,
+                                  ),
                                   iconSize: 72.0,
                                   onPressed: () => audioBloc.add(AudioPause()),
                                 );
                               } else {
                                 playButton = IconButton(
                                   key: const ValueKey('play'),
-                                  icon: const Icon(Icons.play_circle_filled, color: YTColors.primary),
+                                  icon: Icon(
+                                    Icons.play_circle_filled,
+                                    color: YTColors.primary,
+                                  ),
                                   iconSize: 72.0,
                                   onPressed: () => audioBloc.add(AudioResume()),
                                 );
@@ -382,17 +522,25 @@ class FullPlayerScreen extends StatelessWidget {
 
                               return AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 250),
-                                transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                                transitionBuilder: (child, anim) =>
+                                    ScaleTransition(scale: anim, child: child),
                                 child: playButton,
                               );
                             },
                           ),
                           IconButton(
-                            icon: const Icon(Icons.skip_next, color: YTColors.primary, size: 40),
+                            icon: Icon(
+                              Icons.skip_next,
+                              color: YTColors.primary,
+                              size: 40,
+                            ),
                             onPressed: () => audioBloc.add(AudioSeekToNext()),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.repeat, color: YTColors.secondary),
+                            icon: const Icon(
+                              Icons.repeat,
+                              color: YTColors.secondary,
+                            ),
                             onPressed: () {},
                           ),
                         ],
@@ -409,17 +557,27 @@ class FullPlayerScreen extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               TextButton(
-                                onPressed: () => _showUpNextSheet(context, audioBloc),
+                                onPressed: () =>
+                                    _showUpNextSheet(context, audioBloc),
                                 child: const Text(
                                   'UP NEXT',
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                  ),
                                 ),
                               ),
                               TextButton(
-                                onPressed: () => _showLyricsSheet(context, track, audioBloc),
+                                onPressed: () =>
+                                    _showLyricsSheet(context, track, audioBloc),
                                 child: const Text(
                                   'LYRICS',
-                                  style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                  ),
                                 ),
                               ),
                             ],
@@ -437,20 +595,29 @@ class FullPlayerScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPillButton({required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildPillButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: ElevatedButton.icon(
         icon: Icon(icon, color: Colors.white, size: 20),
         label: Text(
           label,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white.withValues(alpha: 0.12),
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
         onPressed: onTap,
@@ -491,11 +658,18 @@ class _LyricsSheetContentState extends State<_LyricsSheetContent> {
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 width: 40,
                 height: 5,
-                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               const Text(
                 'Lyrics',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -507,14 +681,23 @@ class _LyricsSheetContentState extends State<_LyricsSheetContent> {
                   ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: YTColors.primary));
+                      return Center(
+                        child: CircularProgressIndicator(
+                          color: YTColors.primary,
+                        ),
+                      );
                     }
                     final result = snapshot.data;
                     if (result is Success<String>) {
                       // LRC Parse Regex: [mm:ss.xx]
-                      final lrcRegex = RegExp(r'\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)');
+                      final lrcRegex = RegExp(
+                        r'\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)',
+                      );
 
-                      final rawLines = result.data.split('\n').where((l) => l.trim().isNotEmpty).toList();
+                      final rawLines = result.data
+                          .split('\n')
+                          .where((l) => l.trim().isNotEmpty)
+                          .toList();
                       final List<Map<String, dynamic>> parsedLines = [];
                       bool hasTimestamps = false;
 
@@ -525,8 +708,14 @@ class _LyricsSheetContentState extends State<_LyricsSheetContent> {
                           final min = int.parse(match.group(1)!);
                           final sec = int.parse(match.group(2)!);
                           final msData = match.group(3)!;
-                          final ms = msData.length == 2 ? int.parse(msData) * 10 : int.parse(msData);
-                          final duration = Duration(minutes: min, seconds: sec, milliseconds: ms);
+                          final ms = msData.length == 2
+                              ? int.parse(msData) * 10
+                              : int.parse(msData);
+                          final duration = Duration(
+                            minutes: min,
+                            seconds: sec,
+                            milliseconds: ms,
+                          );
                           final text = match.group(4)!.trim();
                           parsedLines.add({'time': duration, 'text': text});
                         } else {
@@ -548,23 +737,48 @@ class _LyricsSheetContentState extends State<_LyricsSheetContent> {
                               if (hasTimestamps) {
                                 // Pinpoint active line based exactly on current position vs parsed timestamp
                                 for (int i = 0; i < parsedLines.length; i++) {
-                                  if (parsedLines[i]['time'] != null && pos >= (parsedLines[i]['time'] as Duration)) {
+                                  if (parsedLines[i]['time'] != null &&
+                                      pos >=
+                                          (parsedLines[i]['time']
+                                              as Duration)) {
                                     activeIndex = i;
                                   }
                                 }
                               } else {
                                 // Fallback linear sync if no timestamps exist
-                                final progress = dur.inMilliseconds > 0 ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0) : 0.0;
-                                activeIndex = (progress * parsedLines.length).floor().clamp(0, parsedLines.length > 0 ? parsedLines.length - 1 : 0);
+                                final progress = dur.inMilliseconds > 0
+                                    ? (pos.inMilliseconds / dur.inMilliseconds)
+                                          .clamp(0.0, 1.0)
+                                    : 0.0;
+                                activeIndex = (progress * parsedLines.length)
+                                    .floor()
+                                    .clamp(
+                                      0,
+                                      parsedLines.length > 0
+                                          ? parsedLines.length - 1
+                                          : 0,
+                                    );
                               }
 
                               // Automatically try to center the active line
-                              if (_localController.hasClients && activeIndex > 0) {
-                                final offset = (activeIndex * 40.0) - (MediaQuery.of(context).size.height * 0.2);
+                              if (_localController.hasClients &&
+                                  activeIndex > 0) {
+                                final offset =
+                                    (activeIndex * 40.0) -
+                                    (MediaQuery.of(context).size.height * 0.2);
                                 if (offset > 0) {
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (mounted && _localController.hasClients) {
-                                      _localController.animateTo(offset, duration: const Duration(milliseconds: 500), curve: Curves.easeOut);
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    if (mounted &&
+                                        _localController.hasClients) {
+                                      _localController.animateTo(
+                                        offset,
+                                        duration: const Duration(
+                                          milliseconds: 500,
+                                        ),
+                                        curve: Curves.easeOut,
+                                      );
                                     }
                                   });
                                 }
@@ -572,24 +786,38 @@ class _LyricsSheetContentState extends State<_LyricsSheetContent> {
 
                               return ListView.builder(
                                 controller: _localController,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 64),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 64,
+                                ),
                                 itemCount: parsedLines.length,
                                 itemBuilder: (context, index) {
                                   final isActive = index == activeIndex;
-                                  final text = parsedLines[index]['text'] as String;
-                                  if (text.isEmpty) return const SizedBox(height: 24);
+                                  final text =
+                                      parsedLines[index]['text'] as String;
+                                  if (text.isEmpty)
+                                    return const SizedBox(height: 24);
 
                                   return AnimatedDefaultTextStyle(
                                     duration: const Duration(milliseconds: 400),
                                     style: TextStyle(
-                                      color: isActive ? Colors.white : Colors.white24,
+                                      color: isActive
+                                          ? Colors.white
+                                          : Colors.white24,
                                       fontSize: isActive ? 28 : 22,
                                       height: 1.5,
-                                      fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
+                                      fontWeight: isActive
+                                          ? FontWeight.bold
+                                          : FontWeight.w600,
                                     ),
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                      child: Text(text, textAlign: TextAlign.center),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8.0,
+                                      ),
+                                      child: Text(
+                                        text,
+                                        textAlign: TextAlign.center,
+                                      ),
                                     ),
                                   );
                                 },
@@ -601,7 +829,9 @@ class _LyricsSheetContentState extends State<_LyricsSheetContent> {
                     } else {
                       return Center(
                         child: Text(
-                          result is Failure<String> ? result.message : 'No lyrics available.',
+                          result is Failure<String>
+                              ? result.message
+                              : 'No lyrics available.',
                           style: const TextStyle(color: Colors.white54),
                         ),
                       );

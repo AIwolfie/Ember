@@ -1,0 +1,74 @@
+name: Shorebird Code Push OTA
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'ember_flutter/**'
+      - '.github/workflows/shorebird.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (validate patch without publishing)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  validate_and_patch:
+    name: Verify & Deploy OTA Patch
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ember_flutter
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Python 3.11 (Required for Chaquopy Android build)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Shorebird
+        uses: shorebirdtech/shorebird-action@v0
+        with:
+          shorebird-version: '1.6.123'
+
+      - name: Get Flutter dependencies
+        run: shorebird flutter pub get
+
+      - name: Verify Dart code formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Static code analysis
+        run: shorebird flutter analyze
+
+      - name: Run unit test suite
+        run: shorebird flutter test
+
+      - name: Publish Shorebird Android OTA Patch
+        if: ${{ !inputs.dry_run }}
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          if [ -z "$SHOREBIRD_TOKEN" ]; then
+            echo "::error::SHOREBIRD_TOKEN secret is missing. Please set SHOREBIRD_TOKEN in GitHub repository Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          # Publish patch without bypassing native/asset safety checks
+          shorebird patch android --no-confirm
+
+      - name: Validate Patch (Dry Run)
+        if: ${{ inputs.dry_run }}
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          shorebird patch android --dry-run

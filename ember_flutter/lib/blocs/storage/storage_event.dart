@@ -76,7 +76,11 @@ class StorageReorderPlaylist extends StorageEvent {
   final String name;
   final int oldIndex;
   final int newIndex;
-  const StorageReorderPlaylist({required this.name, required this.oldIndex, required this.newIndex});
+  const StorageReorderPlaylist({
+    required this.name,
+    required this.oldIndex,
+    required this.newIndex,
+  });
   @override
   List<Object?> get props => [name, oldIndex, newIndex];
 }

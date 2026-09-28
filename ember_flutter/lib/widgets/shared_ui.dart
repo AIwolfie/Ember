@@ -25,17 +25,29 @@ class SharedUI {
         children: [
           Text(
             title,
-            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
           ),
           if (onMoreTap != null)
             InkWell(
               onTap: onMoreTap,
               borderRadius: BorderRadius.circular(16),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
                 child: Text(
                   'More',
-                  style: TextStyle(color: YTColors.primary, fontWeight: FontWeight.w600, fontSize: 14),
+                  style: TextStyle(
+                    color: YTColors.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
@@ -44,7 +56,10 @@ class SharedUI {
     );
   }
 
-  static void showTrackOptions(BuildContext context, Map<String, String> track) {
+  static void showTrackOptions(
+    BuildContext context,
+    Map<String, String> track,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -63,11 +78,17 @@ class SharedUI {
                       width: 40,
                       height: 4,
                       margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(color: Colors.white30, borderRadius: BorderRadius.circular(2)),
+                      decoration: BoxDecoration(
+                        color: Colors.white30,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 8.0,
+                    ),
                     child: Row(
                       children: [
                         ClipRRect(
@@ -77,12 +98,16 @@ class SharedUI {
                             width: 48,
                             height: 48,
                             fit: BoxFit.cover,
-                            errorWidget: (context, error, stackTrace) => Container(
-                              width: 48,
-                              height: 48,
-                              color: YTColors.surfaceLight,
-                              child: const Icon(Icons.music_note, color: YTColors.secondary),
-                            ),
+                            errorWidget: (context, error, stackTrace) =>
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  color: YTColors.surfaceLight,
+                                  child: const Icon(
+                                    Icons.music_note,
+                                    color: YTColors.secondary,
+                                  ),
+                                ),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -94,14 +119,21 @@ class SharedUI {
                                 track['title'] ?? 'Unknown',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 track['artist'] ?? '',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: YTColors.secondary, fontSize: 14),
+                                style: const TextStyle(
+                                  color: YTColors.secondary,
+                                  fontSize: 14,
+                                ),
                               ),
                             ],
                           ),
@@ -111,22 +143,38 @@ class SharedUI {
                   ),
                   const Divider(color: Colors.white10),
                   ListTile(
-                    leading: const Icon(Icons.favorite_border, color: Colors.white),
+                    leading: const Icon(
+                      Icons.favorite_border,
+                      color: Colors.white,
+                    ),
                     title: const Text(
                       'Toggle Favorite',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     onTap: () {
-                      context.read<StorageBloc>().add(StorageToggleFavorite(track));
+                      context.read<StorageBloc>().add(
+                        StorageToggleFavorite(track),
+                      );
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Updated Favorites')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Updated Favorites')),
+                      );
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.playlist_add, color: Colors.white),
+                    leading: const Icon(
+                      Icons.playlist_add,
+                      color: Colors.white,
+                    ),
                     title: const Text(
                       'Add to Playlist',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     onTap: () {
                       Navigator.pop(ctx);
@@ -142,15 +190,26 @@ class SharedUI {
     );
   }
 
-  static void handleItemTap(BuildContext context, Map<String, String> track, List<Map<String, String>> contextItems, int index) {
+  static void handleItemTap(
+    BuildContext context,
+    Map<String, String> track,
+    List<Map<String, String>> contextItems,
+    int index,
+  ) {
     final type = track['type'] ?? 'song';
     if (type == 'artist') {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ArtistScreen(artistInfo: track)));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ArtistScreen(artistInfo: track)),
+      );
     } else if (type == 'playlist' || type == 'album' || type == 'podcast') {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => PlaylistScreen(playlistName: track['title'] ?? 'Playlist', remoteIdentifier: track['browseId'] ?? track['videoId']),
+          builder: (_) => PlaylistScreen(
+            playlistName: track['title'] ?? 'Playlist',
+            remoteIdentifier: track['browseId'] ?? track['videoId'],
+          ),
         ),
       );
     } else {
@@ -158,7 +217,11 @@ class SharedUI {
     }
   }
 
-  static void playFromList(BuildContext context, List<Map<String, String>> list, int index) {
+  static void playFromList(
+    BuildContext context,
+    List<Map<String, String>> list,
+    int index,
+  ) {
     context.read<AudioBloc>().add(AudioPlayQueue(list, startIndex: index));
     context.read<StorageBloc>().add(StorageAddPlayHistory(list[index]));
 
@@ -172,7 +235,10 @@ class SharedUI {
     );
   }
 
-  static Widget buildHorizontalList(List<Map<String, String>> items, {String listId = 'default'}) {
+  static Widget buildHorizontalList(
+    List<Map<String, String>> items, {
+    String listId = 'default',
+  }) {
     if (items.isEmpty) return const SizedBox.shrink();
     return SizedBox(
       height: 220,
@@ -207,19 +273,34 @@ class SharedUI {
                               imageUrl: track['artworkUrl'] ?? '',
                               width: 140,
                               fit: BoxFit.cover,
-                              placeholder: (c, u) => Container(width: 140, color: YTColors.surfaceLight),
-                              errorWidget: (context, error, stackTrace) => Container(
+                              placeholder: (c, u) => Container(
                                 width: 140,
                                 color: YTColors.surfaceLight,
-                                child: const Icon(Icons.music_note, color: YTColors.secondary, size: 48),
                               ),
+                              errorWidget: (context, error, stackTrace) =>
+                                  Container(
+                                    width: 140,
+                                    color: YTColors.surfaceLight,
+                                    child: const Icon(
+                                      Icons.music_note,
+                                      color: YTColors.secondary,
+                                      size: 48,
+                                    ),
+                                  ),
                             ),
                             BlocBuilder<AudioBloc, AudioState>(
                               builder: (context, audioState) {
-                                if (audioState.currentTrack?['videoId'] == track['videoId']) {
+                                if (audioState.currentTrack?['videoId'] ==
+                                    track['videoId']) {
                                   return Container(
                                     color: Colors.black54,
-                                    child: const Center(child: Icon(Icons.equalizer, color: Colors.white, size: 48)),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.equalizer,
+                                        color: Colors.white,
+                                        size: 48,
+                                      ),
+                                    ),
                                   );
                                 }
                                 return const SizedBox.shrink();
@@ -233,14 +314,21 @@ class SharedUI {
                   const SizedBox(height: 10),
                   Text(
                     track['title'] ?? 'Unknown',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     track['artist'] ?? '',
-                    style: const TextStyle(color: YTColors.secondary, fontSize: 13),
+                    style: const TextStyle(
+                      color: YTColors.secondary,
+                      fontSize: 13,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -253,14 +341,22 @@ class SharedUI {
     );
   }
 
-  static Widget buildQuickPicksGrid(BuildContext context, List<Map<String, String>> items) {
+  static Widget buildQuickPicksGrid(
+    BuildContext context,
+    List<Map<String, String>> items,
+  ) {
     if (items.isEmpty) return const SizedBox.shrink();
 
     // Instead of completely generic layout, this 3-row grid mimics YT Music closely
     const int numRows = 3;
     final List<List<Map<String, String>>> chunks = [];
     for (var i = 0; i < items.length; i += numRows) {
-      chunks.add(items.sublist(i, i + numRows > items.length ? items.length : i + numRows));
+      chunks.add(
+        items.sublist(
+          i,
+          i + numRows > items.length ? items.length : i + numRows,
+        ),
+      );
     }
 
     return SizedBox(
@@ -282,7 +378,8 @@ class SharedUI {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8.0, right: 16.0),
                   child: InkWell(
-                    onTap: () => handleItemTap(context, track, items, internalIndex),
+                    onTap: () =>
+                        handleItemTap(context, track, items, internalIndex),
                     onLongPress: () => showTrackOptions(context, track),
                     borderRadius: BorderRadius.circular(8),
                     splashColor: Colors.white12,
@@ -300,18 +397,30 @@ class SharedUI {
                                 CachedNetworkImage(
                                   imageUrl: track['artworkUrl'] ?? '',
                                   fit: BoxFit.cover,
-                                  placeholder: (c, u) => Container(color: YTColors.surfaceLight),
+                                  placeholder: (c, u) =>
+                                      Container(color: YTColors.surfaceLight),
                                   errorWidget: (c, e, s) => Container(
                                     color: YTColors.surfaceLight,
-                                    child: const Icon(Icons.music_note, color: Colors.white54, size: 24),
+                                    child: const Icon(
+                                      Icons.music_note,
+                                      color: Colors.white54,
+                                      size: 24,
+                                    ),
                                   ),
                                 ),
                                 BlocBuilder<AudioBloc, AudioState>(
                                   builder: (context, audioState) {
-                                    if (audioState.currentTrack?['videoId'] == track['videoId']) {
+                                    if (audioState.currentTrack?['videoId'] ==
+                                        track['videoId']) {
                                       return Container(
                                         color: Colors.black54,
-                                        child: const Center(child: Icon(Icons.equalizer, color: Colors.white, size: 28)),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.equalizer,
+                                            color: Colors.white,
+                                            size: 28,
+                                          ),
+                                        ),
                                       );
                                     }
                                     return const SizedBox.shrink();
@@ -329,14 +438,21 @@ class SharedUI {
                             children: [
                               Text(
                                 track['title'] ?? 'Unknown',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 track['artist'] ?? '',
-                                style: const TextStyle(color: YTColors.secondary, fontSize: 13),
+                                style: const TextStyle(
+                                  color: YTColors.secondary,
+                                  fontSize: 13,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -344,7 +460,11 @@ class SharedUI {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.more_vert, color: Colors.white54, size: 20),
+                          icon: const Icon(
+                            Icons.more_vert,
+                            color: Colors.white54,
+                            size: 20,
+                          ),
                           onPressed: () => showTrackOptions(context, track),
                         ),
                       ],

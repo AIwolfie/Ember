@@ -1,4 +1,5 @@
 import 'dart:ui';
+
 import 'package:equatable/equatable.dart';
 
 class AudioState extends Equatable {
@@ -47,5 +48,11 @@ class AudioState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [queue, nativeIndexOffset, currentTrack, dominantColor, playerState];
+  List<Object?> get props => [
+    queue,
+    nativeIndexOffset,
+    currentTrack,
+    dominantColor,
+    playerState,
+  ];
 }

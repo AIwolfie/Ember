@@ -12,18 +12,22 @@
 
 <p align="center">
   <a href="https://github.com/AIwolfie/Ember/releases/latest">
-    <img src="https://img.shields.io/badge/⬇️_Download_Release-Ember_v1.0.0.exe-f59e0b?style=for-the-badge&logo=windows&logoColor=17120e" alt="Download Standalone EXE"/>
+    <img src="https://img.shields.io/badge/⬇️_Desktop_Release-Ember_v1.0.0.exe-f59e0b?style=for-the-badge&logo=windows&logoColor=17120e" alt="Download Standalone EXE"/>
+  </a>
+  <a href="https://github.com/AIwolfie/Ember/releases/latest">
+    <img src="https://img.shields.io/badge/⬇️_Android_Release-Ember.apk-3ddc84?style=for-the-badge&logo=android&logoColor=17120e" alt="Download Android APK"/>
   </a>
   <a href="https://github.com/AIwolfie/Ember/releases/latest">
     <img src="https://img.shields.io/badge/Release-v1.0.0_Ready-10b981?style=for-the-badge&logo=github&labelColor=2b231d" alt="GitHub Release"/>
   </a>
-  <img src="https://img.shields.io/badge/OS-Windows%2010%20%7C%2011-2b231d?style=for-the-badge&logo=windows&logoColor=f4e9dd&labelColor=17120e" alt="Windows Support"/>
-  <img src="https://img.shields.io/badge/Interface-PyQt6%20Fluid-10b981?style=for-the-badge&logo=qt&logoColor=17120e&labelColor=2b231d" alt="PyQt6"/>
+  <img src="https://img.shields.io/badge/Platforms-Windows_%7C_Android-2b231d?style=for-the-badge&logo=windows&logoColor=f4e9dd&labelColor=17120e" alt="Platforms"/>
   <img src="https://img.shields.io/badge/License-MIT-d97706?style=for-the-badge&labelColor=17120e" alt="MIT License"/>
   <img src="https://img.shields.io/badge/Vibe-Pure%20Cozy-ec4899?style=for-the-badge&labelColor=2b231d" alt="Cozy Vibe"/>
 </p>
 
-> 🚀 **No Python or command-line required!** Download the standalone **[`Ember.exe`](https://github.com/AIwolfie/Ember/releases/latest)** directly and double-click to run.
+> 🚀 **Pre-built binaries ready for instant download:**
+> - 🪟 **Windows Desktop:** Download standalone **[`Ember.exe`](https://github.com/AIwolfie/Ember/releases/latest)** — double-click and play, no Python or setup required.
+> - 📱 **Android Mobile:** Download **[`Ember.apk`](https://github.com/AIwolfie/Ember/releases/latest)** — install directly on your smartphone for on-the-go music streaming.
 
 <br/>
 
@@ -120,16 +124,16 @@ Ember ships with 5 unified color stories inspired by natural stones and ambient 
 
 ## 🚀 &nbsp; Quickstart
 
-### 🌟 Option 1: Standalone Download (Recommended for Users)
+### 🌟 Option 1: Pre-built Releases (Recommended for Users)
 
-No Python, command line, or external dependencies required:
+Zero setup required — grab the binary for your platform and enjoy:
 
-1. Download **[`Ember.exe`](https://github.com/AIwolfie/Ember/releases/latest)** (or `Ember-v1.0.0-windows-x64.zip`) from [GitHub Releases](https://github.com/AIwolfie/Ember/releases).
-2. Double-click `Ember.exe` to run. It launches quietly in windowed mode right on your desktop.
+- 🪟 **Windows Desktop:** Download **[`Ember.exe`](https://github.com/AIwolfie/Ember/releases/latest)** (or `Ember-v1.0.0-windows-x64.zip`) from [GitHub Releases](https://github.com/AIwolfie/Ember/releases). Double-click to run silently on your desktop.
+- 📱 **Android Mobile:** Download **[`Ember.apk`](https://github.com/AIwolfie/Ember/releases/latest)** from [GitHub Releases](https://github.com/AIwolfie/Ember/releases). Tap to install on your Android device (Android 5.0+).
 
 <br/>
 
-### 🛠️ Option 2: Run from Source (Developers)
+### 🛠️ Option 2: Run Desktop from Source (Python)
 
 ```bat
 # 1. Clone the repository
@@ -146,14 +150,45 @@ launch.bat
 
 <br/>
 
-### 📦 Option 3: Build Your Own Standalone .exe
+### 📱 Option 3: Run Mobile from Source (Flutter)
 
-Want to compile the `.exe` yourself? A 1-click build script is included:
+```bash
+# 1. Navigate to the flutter project
+cd ember_flutter
+
+# 2. Fetch dependencies
+flutter pub get
+
+# 3. Launch on connected Android device or emulator
+flutter run
+```
+
+<br/>
+
+### 📦 Option 4: Build Your Own Standalone .exe (Windows)
+
+Want to compile the desktop `.exe` yourself? A 1-click build script is included:
 
 ```bat
 build_exe.bat
 ```
 This automatically compiles `ember.spec` using PyInstaller and outputs the portable binary to `dist/Ember.exe`.
+
+<br/>
+
+### 📱 Option 5: Build Your Own Android APK (Mobile)
+
+To package your own release APK:
+
+```bash
+cd ember_flutter
+flutter pub get
+flutter build apk --release
+```
+The optimized release APK will be generated at `build/app/outputs/flutter-apk/app-release.apk`. For per-ABI split APKs (~25MB each):
+```bash
+flutter build apk --split-per-abi
+```
 
 <br/>
 
@@ -251,9 +286,9 @@ py -3 -m pytest tests/ -v
 
 Ember is built with care, craft, and love for music:
 
-- **Mayank Malaviya** ([@AIwolfie](https://github.com/AIwolfie)) — *Original creator, lead architect, and maintainer of Ember.* <a href="https://aiwolfie.gumroad.com/coffee" target="_blank"><img align="center" src="https://img.shields.io/badge/☕_Buy_Me_a_Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Buy Me a Coffee"/></a>
+- **Mayank Malaviya** ([@AIwolfie](https://github.com/AIwolfie) · [aiwolfie.online](https://aiwolfie.online)) — *Original creator, lead architect, and maintainer of Ember.* <a href="https://aiwolfie.gumroad.com/coffee" target="_blank"><img align="center" src="https://img.shields.io/badge/☕_Buy_Me_a_Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Buy Me a Coffee"/></a>
 - **Muhammad Taezeem Tariq Matta** ([@taezeem14](https://github.com/taezeem14)) — *Contributor — development improvements and project upgrades.*
-- **Kenil Ribadiay** ([kenilribadiay.in](https://kenilribadiay.in)) — *Contributor — Android Flutter App Implementation and Android integration.*
+- **Kenil Ribadiya** ([kenilribadiya.in](https://kenilribadiya.in/)) — *Contributor — Mobile App Architect & Android Flutter Implementation.*
 
 For full details, see [CREDITS.md](CREDITS.md).
 

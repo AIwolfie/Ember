@@ -60,6 +60,17 @@ flutter {
 
 chaquopy {
     defaultConfig {
+        val userHome = System.getProperty("user.home")
+        val candidatePaths = listOf(
+            File(userHome, "AppData/Roaming/uv/python/cpython-3.11-windows-x86_64-none/python.exe"),
+            File(userHome, "AppData/Roaming/uv/python/cpython-3.11.14-windows-x86_64-none/python.exe"),
+            File("C:/Python311/python.exe"),
+        )
+        val pyExe = candidatePaths.firstOrNull { it.exists() }
+        if (pyExe != null) {
+            buildPython(pyExe.absolutePath)
+        }
+
         version = "3.11"
         pip {
             options("--default-timeout=120")

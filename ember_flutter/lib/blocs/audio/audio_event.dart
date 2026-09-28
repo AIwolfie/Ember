@@ -10,7 +10,7 @@ abstract class AudioEvent extends Equatable {
 class AudioPlayQueue extends AudioEvent {
   final List<Map<String, String>> tracks;
   final int startIndex;
-  
+
   const AudioPlayQueue(this.tracks, {this.startIndex = 0});
 
   @override

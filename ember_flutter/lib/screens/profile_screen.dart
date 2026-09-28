@@ -1,18 +1,17 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../blocs/storage/storage_bloc.dart';
-import '../blocs/storage/storage_state.dart';
 import '../blocs/storage/storage_event.dart';
-import '../theme.dart';
+import '../blocs/storage/storage_state.dart';
 import '../services/python_service.dart';
+import '../theme.dart';
 import '../utils/result.dart';
-import '../widgets/shared_ui.dart';
 import '../widgets/playlist_sheet.dart';
-import 'playlist_screen.dart';
+import '../widgets/shared_ui.dart';
 import 'history_screen.dart';
+import 'playlist_screen.dart';
 import 'about_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -24,16 +23,23 @@ class ProfileScreen extends StatelessWidget {
       builder: (context, storage) {
         int customPlaylistsCount = storage.playlists.length;
         int favoritesCount = storage.favorites.length;
-        
+
         return Scaffold(
           backgroundColor: YTColors.background,
           body: CustomScrollView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             slivers: [
               // Cinematic Header
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 60, bottom: 24, left: 24, right: 24),
+                  padding: const EdgeInsets.only(
+                    top: 60,
+                    bottom: 24,
+                    left: 24,
+                    right: 24,
+                  ),
                   child: Column(
                     children: [
                       // Avatar with glow
@@ -42,7 +48,7 @@ class ProfileScreen extends StatelessWidget {
                         height: 120,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             colors: [YTColors.primary, Colors.deepPurpleAccent],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -58,11 +64,15 @@ class ProfileScreen extends StatelessWidget {
                         child: Padding(
                           padding: const EdgeInsets.all(4.0),
                           child: Container(
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: YTColors.surfaceLight,
                             ),
-                            child: const Icon(Icons.person_rounded, size: 60, color: Colors.white70),
+                            child: const Icon(
+                              Icons.person_rounded,
+                              size: 60,
+                              color: Colors.white70,
+                            ),
                           ),
                         ),
                       ),
@@ -70,10 +80,11 @@ class ProfileScreen extends StatelessWidget {
                       const Text(
                         'Your Profile',
                         style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1.0),
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1.0,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -103,14 +114,25 @@ class ProfileScreen extends StatelessWidget {
                       title: 'History',
                       icon: Icons.history_rounded,
                       color: Colors.blueAccent,
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const HistoryScreen(),
+                        ),
+                      ),
                     ),
                     _buildBentoCard(
                       context,
                       title: 'Favorites',
                       icon: Icons.favorite_rounded,
                       color: Colors.redAccent,
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlaylistScreen(playlistName: 'Favorites'))),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const PlaylistScreen(playlistName: 'Favorites'),
+                        ),
+                      ),
                     ),
                     _buildBentoCard(
                       context,
@@ -130,19 +152,28 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 32),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
-              // Recently Played UI 
+              // Recently Played UI
               if (storage.playHistory.isNotEmpty) ...[
                 SliverToBoxAdapter(
-                  child: SharedUI.buildSectionTitle('Recently Played', onMoreTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()));
-                  }),
+                  child: SharedUI.buildSectionTitle(
+                    'Recently Played',
+                    onMoreTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const HistoryScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 SliverToBoxAdapter(
-                  child: SharedUI.buildHorizontalList(storage.playHistory, listId: 'history'),
+                  child: SharedUI.buildHorizontalList(
+                    storage.playHistory,
+                    listId: 'history',
+                  ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 32)),
               ],
@@ -151,13 +182,19 @@ class ProfileScreen extends StatelessWidget {
               SliverToBoxAdapter(
                 child: SharedUI.buildSectionTitle('Your Library'),
               ),
-              
+
               if (storage.playlists.isEmpty)
                 const SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 16.0,
+                    ),
                     child: Center(
-                      child: Text('No custom playlists yet.', style: TextStyle(color: Colors.white54, fontSize: 16)),
+                      child: Text(
+                        'No custom playlists yet.',
+                        style: TextStyle(color: Colors.white54, fontSize: 16),
+                      ),
                     ),
                   ),
                 )
@@ -165,29 +202,31 @@ class ProfileScreen extends StatelessWidget {
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final key = storage.playlists.keys.elementAt(index);
-                        final list = storage.playlists[key]!;
-                        final firstArt = list.isNotEmpty ? (list.first['artworkUrl'] ?? '') : '';
-                        return _buildCustomPlaylistItem(
-                          context: context,
-                          title: key,
-                          subtitle: '${list.length} songs',
-                          imageUrl: firstArt,
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => PlaylistScreen(playlistName: key)));
-                          },
-                        );
-                      },
-                      childCount: storage.playlists.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final key = storage.playlists.keys.elementAt(index);
+                      final list = storage.playlists[key]!;
+                      final firstArt = list.isNotEmpty
+                          ? (list.first['artworkUrl'] ?? '')
+                          : '';
+                      return _buildCustomPlaylistItem(
+                        context: context,
+                        title: key,
+                        subtitle: '${list.length} songs',
+                        imageUrl: firstArt,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PlaylistScreen(playlistName: key),
+                            ),
+                          );
+                        },
+                      );
+                    }, childCount: storage.playlists.length),
                   ),
                 ),
 
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 48),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 48)),
 
               // About the Developers (Premium Card)
               SliverToBoxAdapter(
@@ -197,9 +236,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 150),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 150)),
             ],
           ),
         );
@@ -207,7 +244,13 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBentoCard(BuildContext context, {required String title, required IconData icon, required Color color, required VoidCallback onTap}) {
+  Widget _buildBentoCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -230,7 +273,11 @@ class ProfileScreen extends StatelessWidget {
               Positioned(
                 right: -16,
                 bottom: -16,
-                child: Icon(icon, size: 80, color: color.withValues(alpha: 0.1)),
+                child: Icon(
+                  icon,
+                  size: 80,
+                  color: color.withValues(alpha: 0.1),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -284,7 +331,8 @@ class ProfileScreen extends StatelessWidget {
             width: 56,
             height: 56,
             fit: BoxFit.cover,
-            placeholder: (c, u) => Container(width: 56, height: 56, color: YTColors.surfaceLight),
+            placeholder: (c, u) =>
+                Container(width: 56, height: 56, color: YTColors.surfaceLight),
             errorWidget: (c, err, s) => Container(
               width: 56,
               height: 56,
@@ -293,9 +341,22 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
         ),
-        title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
-        subtitle: Text(subtitle, style: const TextStyle(color: YTColors.secondary, fontSize: 13)),
-        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(color: YTColors.secondary, fontSize: 13),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: Colors.white38,
+        ),
         onTap: onTap,
       ),
     );
@@ -306,7 +367,10 @@ class ProfileScreen extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AboutScreen()),
+          );
         },
         borderRadius: BorderRadius.circular(32),
         child: Container(
@@ -333,20 +397,38 @@ class ProfileScreen extends StatelessWidget {
                     color: YTColors.primary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.info_outline_rounded, color: YTColors.primary, size: 28),
+                  child: Icon(
+                    Icons.info_outline_rounded,
+                    color: YTColors.primary,
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('About Ember', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      Text(
+                        'About Ember',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       SizedBox(height: 4),
-                      Text('Features, Open Source, and Credits', style: TextStyle(color: Colors.white54, fontSize: 13)),
+                      Text(
+                        'Features, Open Source, and Credits',
+                        style: TextStyle(color: Colors.white54, fontSize: 13),
+                      ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 20),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white24,
+                  size: 20,
+                ),
               ],
             ),
           ),
@@ -365,8 +447,16 @@ class ProfileScreen extends StatelessWidget {
           builder: (context, setState) {
             return AlertDialog(
               backgroundColor: YTColors.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              title: const Text('Import Playlist', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              title: const Text(
+                'Import Playlist',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -378,52 +468,105 @@ class ProfileScreen extends StatelessWidget {
                       hintStyle: const TextStyle(color: Colors.white54),
                       filled: true,
                       fillColor: YTColors.background,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                   ),
-                  if (isLoading) const Padding(padding: EdgeInsets.only(top: 20), child: CircularProgressIndicator(color: YTColors.primary)),
+                  if (isLoading)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20),
+                      child: CircularProgressIndicator(color: YTColors.primary),
+                    ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.white54),
+                  ),
                 ),
                 ElevatedButton(
-                  onPressed: isLoading ? null : () async {
-                    if (controller.text.trim().isEmpty) return;
-                    setState(() => isLoading = true);
-                    final res = await PythonService.importPlaylist(controller.text.trim());
-                    setState(() => isLoading = false);
-                    Navigator.pop(ctx);
-                    if (res is Success<Map<String, dynamic>>) {
-                      final data = res.data;
-                      final title = data['title'] as String;
-                      final tracksRaw = data['tracks'] as List<dynamic>;
-                      final tracks = tracksRaw.map((e) => (e as Map).map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''))).toList();
-                      if (tracks.isNotEmpty) {
-                        context.read<StorageBloc>().add(StorageImportPlaylist(name: title, tracks: tracks));
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Imported ${tracks.length} tracks into "$title"')));
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No tracks found.')));
-                      }
-                    } else if (res is Failure) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text((res as Failure<Map<String, dynamic>>).message)));
-                    }
-                  },
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (controller.text.trim().isEmpty) return;
+                          setState(() => isLoading = true);
+                          final res = await PythonService.importPlaylist(
+                            controller.text.trim(),
+                          );
+                          setState(() => isLoading = false);
+                          Navigator.pop(ctx);
+                          if (res is Success<Map<String, dynamic>>) {
+                            final data = res.data;
+                            final title = data['title'] as String;
+                            final tracksRaw = data['tracks'] as List<dynamic>;
+                            final tracks = tracksRaw
+                                .map(
+                                  (e) => (e as Map).map(
+                                    (k, v) => MapEntry(
+                                      k.toString(),
+                                      v?.toString() ?? '',
+                                    ),
+                                  ),
+                                )
+                                .toList();
+                            if (tracks.isNotEmpty) {
+                              context.read<StorageBloc>().add(
+                                StorageImportPlaylist(
+                                  name: title,
+                                  tracks: tracks,
+                                ),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Imported ${tracks.length} tracks into "$title"',
+                                  ),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('No tracks found.'),
+                                ),
+                              );
+                            }
+                          } else if (res is Failure) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  (res as Failure<Map<String, dynamic>>)
+                                      .message,
+                                ),
+                              ),
+                            );
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: YTColors.primary,
                     foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
-                  child: const Text('Import', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Import',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             );
           },
         );
-      }
+      },
     );
   }
 }

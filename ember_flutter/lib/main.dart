@@ -9,11 +9,14 @@ import 'blocs/audio/audio_state.dart';
 import 'blocs/home/home_bloc.dart';
 import 'blocs/home/home_event.dart';
 import 'blocs/storage/storage_bloc.dart';
+import 'screens/about_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/profile_screen.dart';
+import 'screens/library_screen.dart';
 import 'screens/search_screen.dart';
+import 'services/update_service.dart';
 import 'theme.dart';
 import 'widgets/mini_player.dart';
+import 'widgets/settings_sheet.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,12 +33,18 @@ void main() async {
   final storageBloc = StorageBloc();
   await storageBloc.init();
 
+  // Non-blocking silent background OTA check via Shorebird
+  UpdateService.instance.initBackgroundUpdate();
+
   runApp(
     MultiBlocProvider(
       providers: [
         BlocProvider<StorageBloc>.value(value: storageBloc),
+        BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
         BlocProvider<AudioBloc>(create: (_) => AudioBloc()),
-        BlocProvider<HomeBloc>(create: (_) => HomeBloc()..add(const HomeLoadRequested())),
+        BlocProvider<HomeBloc>(
+          create: (_) => HomeBloc()..add(const HomeLoadRequested()),
+        ),
       ],
       child: const EmberApp(),
     ),
@@ -47,7 +56,16 @@ class EmberApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(title: 'Ember', debugShowCheckedModeBanner: false, theme: YTTheme.darkTheme, home: const MainLayout());
+    return BlocBuilder<ThemeCubit, EmberThemeOption>(
+      builder: (context, currentTheme) {
+        return MaterialApp(
+          title: 'Ember',
+          debugShowCheckedModeBanner: false,
+          theme: YTTheme.getTheme(currentTheme),
+          home: const MainLayout(),
+        );
+      },
+    );
   }
 }
 
@@ -83,7 +101,10 @@ class _MainLayoutState extends State<MainLayout> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [topColor.withValues(alpha: 0.3), YTColors.background],
+                        colors: [
+                          topColor.withValues(alpha: 0.3),
+                          YTColors.background,
+                        ],
                         stops: const [0.0, 1.0],
                       ),
                     ),
@@ -91,28 +112,60 @@ class _MainLayoutState extends State<MainLayout> {
                 ),
               NestedScrollView(
                 physics: const BouncingScrollPhysics(),
-                headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-                  return [
-                    if (_currentIndex == 0) // Only show top bar on home screen
-                      SliverAppBar(
-                        floating: true,
-                        snap: true,
-                        backgroundColor: Colors.transparent, // transparent for gradient
-                        surfaceTintColor: Colors.transparent,
-                        title: Row(
-                          children: [
-                            const Icon(Icons.whatshot, color: Colors.orangeAccent, size: 32),
-                            const SizedBox(width: 8),
-                            Text('Ember', style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                          ],
-                        ),
-                        actions: const [
-                          SizedBox(width: 8),
-                        ],
-                      ),
-                  ];
-                },
-                body: IndexedStack(index: _currentIndex, children: const [HomeScreen(), SearchScreen(), ProfileScreen()]),
+                headerSliverBuilder:
+                    (BuildContext context, bool innerBoxIsScrolled) {
+                      return [
+                        if (_currentIndex ==
+                            0) // Only show top bar on home screen
+                          SliverAppBar(
+                            floating: true,
+                            snap: true,
+                            backgroundColor:
+                                Colors.transparent, // transparent for gradient
+                            surfaceTintColor: Colors.transparent,
+                            title: Row(
+                              children: [
+                                const Icon(
+                                  Icons.whatshot,
+                                  color: Colors.orangeAccent,
+                                  size: 32,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Ember',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .displayMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.2,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.settings_outlined,
+                                  color: Colors.white70,
+                                ),
+                                tooltip: 'Settings',
+                                onPressed: () => showSettingsSheet(context),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                          ),
+                      ];
+                    },
+                body: IndexedStack(
+                  index: _currentIndex,
+                  children: const [
+                    HomeScreen(),
+                    SearchScreen(),
+                    LibraryScreen(),
+                    AboutScreen(),
+                  ],
+                ),
               ),
             ],
           );
@@ -128,6 +181,7 @@ class _MainLayoutState extends State<MainLayout> {
               child: BottomNavigationBar(
                 backgroundColor: YTColors.surface.withValues(alpha: 0.85),
                 elevation: 0,
+                type: BottomNavigationBarType.fixed,
                 currentIndex: _currentIndex,
                 onTap: (index) {
                   setState(() {
@@ -135,9 +189,26 @@ class _MainLayoutState extends State<MainLayout> {
                   });
                 },
                 items: const [
-                  BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-                  BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-                  BottomNavigationBarItem(icon: Icon(Icons.person), label: 'You'),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home_outlined),
+                    activeIcon: Icon(Icons.home_rounded),
+                    label: 'Home',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.search_outlined),
+                    activeIcon: Icon(Icons.search_rounded),
+                    label: 'Search',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.library_music_outlined),
+                    activeIcon: Icon(Icons.library_music_rounded),
+                    label: 'Library',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.info_outline_rounded),
+                    activeIcon: Icon(Icons.info_rounded),
+                    label: 'About',
+                  ),
                 ],
               ),
             ),
