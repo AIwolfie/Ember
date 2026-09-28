@@ -73,8 +73,8 @@ jobs:
         if: ${{ !inputs.dry_run }}
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
-        run: |
-          shorebird patch android --release-version=latest --allow-native-diffs --no-confirm -v
+        run: | 
+          shorebird patch android --release-version=1.0.0+1 --allow-native-diffs --allow-asset-diffs --no-confirm -v
 
       - name: Validate Patch (Dry Run)
         if: ${{ inputs.dry_run }}
