@@ -8,13 +8,17 @@ import 'package:just_audio/just_audio.dart';
 import '../blocs/audio/audio_bloc.dart';
 import '../blocs/audio/audio_event.dart';
 import '../blocs/audio/audio_state.dart';
+import '../blocs/download/download_bloc.dart';
 import '../blocs/storage/storage_bloc.dart';
 import '../blocs/storage/storage_event.dart';
 import '../blocs/storage/storage_state.dart';
 import '../services/python_service.dart';
+import '../services/sleep_timer_service.dart';
 import '../theme.dart';
 import '../utils/result.dart';
+import '../widgets/playback_speed_sheet.dart';
 import '../widgets/playlist_sheet.dart';
+import '../widgets/sleep_timer_sheet.dart';
 
 class FullPlayerScreen extends StatelessWidget {
   const FullPlayerScreen({super.key});
@@ -43,9 +47,7 @@ class FullPlayerScreen extends StatelessWidget {
               maxChildSize: 0.95,
               builder: (_, controller) {
                 return Container(
-                  color: YTColors.surface.withValues(
-                    alpha: 0.5,
-                  ), // Glassmorphism base
+                  color: YTColors.surface.withValues(alpha: 0.85),
                   child: Column(
                     children: [
                       Container(
@@ -133,7 +135,7 @@ class FullPlayerScreen extends StatelessWidget {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   subtitle: Text(
-                                    '${queueTrack['artist']} • ${queueTrack['duration']}',
+                                    '${queueTrack['artist']} • ${queueTrack['duration'] ?? ''}',
                                     style: const TextStyle(
                                       color: YTColors.disabled,
                                     ),
@@ -172,24 +174,6 @@ class FullPlayerScreen extends StatelessWidget {
     );
   }
 
-  void _showLyricsSheet(
-    BuildContext context,
-    Map<String, String> track,
-    AudioBloc audioBloc,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return FractionallySizedBox(
-          heightFactor: 0.85,
-          child: _LyricsSheetContent(track: track, audioBloc: audioBloc),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AudioBloc, AudioState>(
@@ -209,6 +193,8 @@ class FullPlayerScreen extends StatelessWidget {
         }
 
         final audioBloc = context.read<AudioBloc>();
+        final screenWidth = MediaQuery.of(context).size.width;
+        final artSize = (screenWidth - 56).clamp(240.0, 360.0);
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -218,13 +204,41 @@ class FullPlayerScreen extends StatelessWidget {
             elevation: 0,
             leading: IconButton(
               icon: const Icon(
-                Icons.keyboard_arrow_down,
+                Icons.keyboard_arrow_down_rounded,
                 color: Colors.white,
                 size: 32,
               ),
               onPressed: () => Navigator.pop(context),
             ),
-            actions: [],
+            actions: [
+              // Playback Speed
+              IconButton(
+                tooltip: 'Playback Speed',
+                icon: const Icon(Icons.speed_rounded, color: Colors.white70),
+                onPressed: () => showPlaybackSpeedSheet(context, audioBloc),
+              ),
+              // Sleep Timer
+              ValueListenableBuilder<bool>(
+                valueListenable: SleepTimerService.instance.isActiveNotifier,
+                builder: (context, isActive, _) {
+                  return IconButton(
+                    tooltip: 'Sleep Timer',
+                    icon: Icon(
+                      isActive ? Icons.bedtime_rounded : Icons.bedtime_outlined,
+                      color: isActive ? YTColors.primary : Colors.white70,
+                    ),
+                    onPressed: () => showSleepTimerSheet(context, audioBloc),
+                  );
+                },
+              ),
+              // Queue / Up Next
+              IconButton(
+                tooltip: 'Up Next',
+                icon: const Icon(Icons.queue_music_rounded, color: Colors.white),
+                onPressed: () => _showUpNextSheet(context, audioBloc),
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
           body: Stack(
             children: [
@@ -259,51 +273,49 @@ class FullPlayerScreen extends StatelessWidget {
                 ),
               ),
               SafeArea(
-                child: Padding(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Spacer(flex: 1),
+                      const SizedBox(height: 12),
                       // Album Art
-                      Expanded(
-                        flex: 8,
-                        child: Center(
-                          child: AspectRatio(
-                            aspectRatio: 1.0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.4),
-                                    blurRadius: 30,
-                                    offset: const Offset(0, 15),
+                      Center(
+                        child: Container(
+                          width: artSize,
+                          height: artSize,
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.45),
+                                blurRadius: 30,
+                                offset: const Offset(0, 15),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: CachedNetworkImage(
+                              imageUrl: track['artworkUrl'] ?? '',
+                              fit: BoxFit.cover,
+                              errorWidget: (context, error, stack) =>
+                                  Container(
+                                    color: YTColors.surface,
+                                    child: const Icon(
+                                      Icons.music_note,
+                                      color: YTColors.secondary,
+                                      size: 80,
+                                    ),
                                   ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: CachedNetworkImage(
-                                  imageUrl: track['artworkUrl'] ?? '',
-                                  fit: BoxFit.cover,
-                                  errorWidget: (context, error, stack) =>
-                                      Container(
-                                        color: YTColors.surface,
-                                        child: const Icon(
-                                          Icons.music_note,
-                                          color: YTColors.secondary,
-                                          size: 80,
-                                        ),
-                                      ),
-                                ),
-                              ),
                             ),
                           ),
                         ),
                       ),
-                      const Spacer(flex: 2),
 
-                      // Title and Actions Row
+                      const SizedBox(height: 24),
+
+                      // Title and Artist
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -313,24 +325,21 @@ class FullPlayerScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   track['title'] ?? 'Unknown Title',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .displayMedium
-                                      ?.copyWith(
-                                        fontSize: 26,
-                                        color: Colors.white,
-                                      ),
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 4),
                                 Text(
                                   track['artist'] ?? 'Unknown Artist',
-                                  style: Theme.of(context).textTheme.bodyLarge
-                                      ?.copyWith(
-                                        fontSize: 18,
-                                        color: Colors.white70,
-                                      ),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white70,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -340,9 +349,9 @@ class FullPlayerScreen extends StatelessWidget {
                         ],
                       ),
 
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
-                      // Pill Action Row
+                      // Pill Action Row (Like, Save, Download)
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
@@ -350,13 +359,14 @@ class FullPlayerScreen extends StatelessWidget {
                             BlocBuilder<StorageBloc, StorageState>(
                               builder: (context, storageState) {
                                 final isFav = storageState.isFavorite(
-                                  track['videoId']!,
+                                  track['videoId'] ?? '',
                                 );
                                 return _buildPillButton(
                                   icon: isFav
                                       ? Icons.favorite
                                       : Icons.favorite_border,
                                   label: 'Like',
+                                  color: isFav ? Colors.redAccent : null,
                                   onTap: () => context.read<StorageBloc>().add(
                                     StorageToggleFavorite(track),
                                   ),
@@ -369,11 +379,51 @@ class FullPlayerScreen extends StatelessWidget {
                               onTap: () =>
                                   showPlaylistSheet(context, track: track),
                             ),
+                            BlocBuilder<DownloadBloc, DownloadState>(
+                              builder: (context, downloadState) {
+                                final videoId = track['videoId'] ?? '';
+                                final isDownloaded = downloadState.isDownloaded(videoId);
+                                final isDownloading = downloadState.isDownloading(videoId);
+
+                                return _buildPillButton(
+                                  icon: isDownloaded
+                                      ? Icons.download_done_rounded
+                                      : (isDownloading
+                                          ? Icons.downloading_rounded
+                                          : Icons.download_rounded),
+                                  label: isDownloaded
+                                      ? 'Downloaded'
+                                      : (isDownloading ? 'Downloading...' : 'Download'),
+                                  color: isDownloaded ? Colors.greenAccent : null,
+                                  onTap: () {
+                                    if (isDownloaded) {
+                                      context.read<DownloadBloc>().add(
+                                        DownloadRemoveEvent(videoId),
+                                      );
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Removed offline download'),
+                                        ),
+                                      );
+                                    } else if (!isDownloading) {
+                                      context.read<DownloadBloc>().add(
+                                        DownloadStartEvent(track),
+                                      );
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Downloading for offline...'),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ),
 
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
                       // Progress Bar
                       StreamBuilder<Duration>(
@@ -546,44 +596,40 @@ class FullPlayerScreen extends StatelessWidget {
                         ],
                       ),
 
-                      const Spacer(),
+                      const SizedBox(height: 24),
 
-                      // Bottom Tabs
-                      SafeArea(
-                        top: false,
-                        child: Container(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              TextButton(
-                                onPressed: () =>
-                                    _showUpNextSheet(context, audioBloc),
-                                child: const Text(
-                                  'UP NEXT',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
+                      // Scroll Down For Lyrics Indicator
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: Column(
+                            children: const [
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: Colors.white38,
+                                size: 26,
                               ),
-                              TextButton(
-                                onPressed: () =>
-                                    _showLyricsSheet(context, track, audioBloc),
-                                child: const Text(
-                                  'LYRICS',
-                                  style: TextStyle(
-                                    color: Colors.white54,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                  ),
+                              SizedBox(height: 2),
+                              Text(
+                                'SCROLL FOR LYRICS',
+                                style: TextStyle(
+                                  color: Colors.white38,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.5,
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ),
+
+                      const SizedBox(height: 12),
+
+                      // Dedicated Inline Lyrics Section (Scroll to reveal)
+                      _InlineLyricsView(track: track, audioBloc: audioBloc),
+
+                      const SizedBox(height: 48),
                     ],
                   ),
                 ),
@@ -599,15 +645,16 @@ class FullPlayerScreen extends StatelessWidget {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    Color? color,
   }) {
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: ElevatedButton.icon(
-        icon: Icon(icon, color: Colors.white, size: 20),
+        icon: Icon(icon, color: color ?? Colors.white, size: 20),
         label: Text(
           label,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: color ?? Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -626,222 +673,177 @@ class FullPlayerScreen extends StatelessWidget {
   }
 }
 
-class _LyricsSheetContent extends StatefulWidget {
+class _InlineLyricsView extends StatelessWidget {
   final Map<String, String> track;
   final AudioBloc audioBloc;
-  const _LyricsSheetContent({required this.track, required this.audioBloc});
-
-  @override
-  State<_LyricsSheetContent> createState() => _LyricsSheetContentState();
-}
-
-class _LyricsSheetContentState extends State<_LyricsSheetContent> {
-  final ScrollController _localController = ScrollController();
-
-  @override
-  void dispose() {
-    _localController.dispose();
-    super.dispose();
-  }
+  const _InlineLyricsView({required this.track, required this.audioBloc});
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-        child: Container(
-          color: YTColors.surface.withValues(alpha: 0.5), // Glassmorphism base
-          child: Column(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: YTColors.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
               const Text(
                 'Lyrics',
                 style: TextStyle(
                   color: Colors.white,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  letterSpacing: -0.4,
                 ),
               ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: FutureBuilder<Result<String>>(
-                  future: PythonService.lyrics(
-                    widget.track['videoId'] ?? '',
-                    title: widget.track['title'] ?? '',
-                    artist: widget.track['artist'] ?? '',
-                  ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
-                        child: CircularProgressIndicator(
-                          color: YTColors.primary,
-                        ),
-                      );
-                    }
-                    final result = snapshot.data;
-                    if (result is Success<String>) {
-                      // LRC Parse Regex: [mm:ss.xx]
-                      final lrcRegex = RegExp(
-                        r'\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)',
-                      );
-
-                      final rawLines = result.data
-                          .split('\n')
-                          .where((l) => l.trim().isNotEmpty)
-                          .toList();
-                      final List<Map<String, dynamic>> parsedLines = [];
-                      bool hasTimestamps = false;
-
-                      for (final line in rawLines) {
-                        final match = lrcRegex.firstMatch(line);
-                        if (match != null) {
-                          hasTimestamps = true;
-                          final min = int.parse(match.group(1)!);
-                          final sec = int.parse(match.group(2)!);
-                          final msData = match.group(3)!;
-                          final ms = msData.length == 2
-                              ? int.parse(msData) * 10
-                              : int.parse(msData);
-                          final duration = Duration(
-                            minutes: min,
-                            seconds: sec,
-                            milliseconds: ms,
-                          );
-                          final text = match.group(4)!.trim();
-                          parsedLines.add({'time': duration, 'text': text});
-                        } else {
-                          // Plain text line
-                          parsedLines.add({'time': null, 'text': line.trim()});
-                        }
-                      }
-
-                      return StreamBuilder<Duration>(
-                        stream: widget.audioBloc.player.positionStream,
-                        builder: (context, posSnap) {
-                          return StreamBuilder<Duration?>(
-                            stream: widget.audioBloc.player.durationStream,
-                            builder: (context, durSnap) {
-                              final pos = posSnap.data ?? Duration.zero;
-                              final dur = durSnap.data ?? Duration.zero;
-
-                              int activeIndex = 0;
-                              if (hasTimestamps) {
-                                // Pinpoint active line based exactly on current position vs parsed timestamp
-                                for (int i = 0; i < parsedLines.length; i++) {
-                                  if (parsedLines[i]['time'] != null &&
-                                      pos >=
-                                          (parsedLines[i]['time']
-                                              as Duration)) {
-                                    activeIndex = i;
-                                  }
-                                }
-                              } else {
-                                // Fallback linear sync if no timestamps exist
-                                final progress = dur.inMilliseconds > 0
-                                    ? (pos.inMilliseconds / dur.inMilliseconds)
-                                          .clamp(0.0, 1.0)
-                                    : 0.0;
-                                activeIndex = (progress * parsedLines.length)
-                                    .floor()
-                                    .clamp(
-                                      0,
-                                      parsedLines.length > 0
-                                          ? parsedLines.length - 1
-                                          : 0,
-                                    );
-                              }
-
-                              // Automatically try to center the active line
-                              if (_localController.hasClients &&
-                                  activeIndex > 0) {
-                                final offset =
-                                    (activeIndex * 40.0) -
-                                    (MediaQuery.of(context).size.height * 0.2);
-                                if (offset > 0) {
-                                  WidgetsBinding.instance.addPostFrameCallback((
-                                    _,
-                                  ) {
-                                    if (mounted &&
-                                        _localController.hasClients) {
-                                      _localController.animateTo(
-                                        offset,
-                                        duration: const Duration(
-                                          milliseconds: 500,
-                                        ),
-                                        curve: Curves.easeOut,
-                                      );
-                                    }
-                                  });
-                                }
-                              }
-
-                              return ListView.builder(
-                                controller: _localController,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 64,
-                                ),
-                                itemCount: parsedLines.length,
-                                itemBuilder: (context, index) {
-                                  final isActive = index == activeIndex;
-                                  final text =
-                                      parsedLines[index]['text'] as String;
-                                  if (text.isEmpty)
-                                    return const SizedBox(height: 24);
-
-                                  return AnimatedDefaultTextStyle(
-                                    duration: const Duration(milliseconds: 400),
-                                    style: TextStyle(
-                                      color: isActive
-                                          ? Colors.white
-                                          : Colors.white24,
-                                      fontSize: isActive ? 28 : 22,
-                                      height: 1.5,
-                                      fontWeight: isActive
-                                          ? FontWeight.bold
-                                          : FontWeight.w600,
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8.0,
-                                      ),
-                                      child: Text(
-                                        text,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          );
-                        },
-                      );
-                    } else {
-                      return Center(
-                        child: Text(
-                          result is Failure<String>
-                              ? result.message
-                              : 'No lyrics available.',
-                          style: const TextStyle(color: Colors.white54),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ),
+              Icon(Icons.lyrics_rounded, color: YTColors.primary, size: 22),
             ],
           ),
-        ),
+          const SizedBox(height: 20),
+          FutureBuilder<Result<String>>(
+            future: PythonService.lyrics(
+              track['videoId'] ?? '',
+              title: track['title'] ?? '',
+              artist: track['artist'] ?? '',
+            ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: CircularProgressIndicator(color: YTColors.primary),
+                  ),
+                );
+              }
+
+              final result = snapshot.data;
+              if (result is Success<String>) {
+                final lrcRegex = RegExp(r'\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)');
+                final rawLines = result.data
+                    .split('\n')
+                    .where((l) => l.trim().isNotEmpty)
+                    .toList();
+                final List<Map<String, dynamic>> parsedLines = [];
+                bool hasTimestamps = false;
+
+                for (final line in rawLines) {
+                  final match = lrcRegex.firstMatch(line);
+                  if (match != null) {
+                    hasTimestamps = true;
+                    final min = int.parse(match.group(1)!);
+                    final sec = int.parse(match.group(2)!);
+                    final msData = match.group(3)!;
+                    final ms = msData.length == 2
+                        ? int.parse(msData) * 10
+                        : int.parse(msData);
+                    final duration = Duration(
+                      minutes: min,
+                      seconds: sec,
+                      milliseconds: ms,
+                    );
+                    final text = match.group(4)!.trim();
+                    parsedLines.add({'time': duration, 'text': text});
+                  } else {
+                    parsedLines.add({'time': null, 'text': line.trim()});
+                  }
+                }
+
+                return StreamBuilder<Duration>(
+                  stream: audioBloc.player.positionStream,
+                  builder: (context, posSnap) {
+                    return StreamBuilder<Duration?>(
+                      stream: audioBloc.player.durationStream,
+                      builder: (context, durSnap) {
+                        final pos = posSnap.data ?? Duration.zero;
+                        final dur = durSnap.data ?? Duration.zero;
+
+                        int activeIndex = 0;
+                        if (hasTimestamps) {
+                          for (int i = 0; i < parsedLines.length; i++) {
+                            if (parsedLines[i]['time'] != null &&
+                                pos >= (parsedLines[i]['time'] as Duration)) {
+                              activeIndex = i;
+                            }
+                          }
+                        } else {
+                          final progress = dur.inMilliseconds > 0
+                              ? (pos.inMilliseconds / dur.inMilliseconds)
+                                    .clamp(0.0, 1.0)
+                              : 0.0;
+                          activeIndex = (progress * parsedLines.length)
+                              .floor()
+                              .clamp(
+                                0,
+                                parsedLines.isNotEmpty
+                                    ? parsedLines.length - 1
+                                    : 0,
+                              );
+                        }
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: parsedLines.asMap().entries.map((entry) {
+                            final idx = entry.key;
+                            final item = entry.value;
+                            final isActive = idx == activeIndex;
+                            final text = item['text'] as String;
+                            if (text.isEmpty) {
+                              return const SizedBox(height: 16);
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6.0,
+                              ),
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 250),
+                                style: TextStyle(
+                                  color: isActive
+                                      ? Colors.white
+                                      : Colors.white38,
+                                  fontSize: isActive ? 22 : 17,
+                                  height: 1.4,
+                                  fontWeight: isActive
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                ),
+                                child: Text(text),
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    );
+                  },
+                );
+              } else {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Text(
+                      'No lyrics found for this song.',
+                      style: TextStyle(color: Colors.white54, fontSize: 14),
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
       ),
     );
   }

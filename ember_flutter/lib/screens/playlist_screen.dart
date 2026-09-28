@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../blocs/audio/audio_bloc.dart';
 import '../blocs/audio/audio_event.dart';
+import '../blocs/download/download_bloc.dart';
 import '../blocs/storage/storage_bloc.dart';
 import '../blocs/storage/storage_event.dart';
 import '../blocs/storage/storage_state.dart';
@@ -545,6 +546,73 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                                                     );
                                               },
                                             ),
+                                          BlocBuilder<DownloadBloc, DownloadState>(
+                                            builder: (context, downloadState) {
+                                              final videoId = track['videoId'] ?? '';
+                                              final isDownloaded = downloadState.isDownloaded(videoId);
+                                              final isDownloading = downloadState.isDownloading(videoId);
+
+                                              if (isDownloading) {
+                                                return ListTile(
+                                                  leading: SizedBox(
+                                                    width: 24,
+                                                    height: 24,
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: YTColors.primary,
+                                                    ),
+                                                  ),
+                                                  title: Text(
+                                                    'Downloading...',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+
+                                              return ListTile(
+                                                leading: Icon(
+                                                  isDownloaded
+                                                      ? Icons.delete_outline_rounded
+                                                      : Icons.download_rounded,
+                                                  color: isDownloaded ? Colors.redAccent : Colors.white,
+                                                ),
+                                                title: Text(
+                                                  isDownloaded
+                                                      ? 'Remove Download'
+                                                      : 'Download for Offline',
+                                                  style: TextStyle(
+                                                    color: isDownloaded ? Colors.redAccent : Colors.white,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                onTap: () {
+                                                  Navigator.pop(ctx);
+                                                  if (isDownloaded) {
+                                                    context.read<DownloadBloc>().add(
+                                                      DownloadRemoveEvent(videoId),
+                                                    );
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text('Removed offline download'),
+                                                      ),
+                                                    );
+                                                  } else {
+                                                    context.read<DownloadBloc>().add(
+                                                      DownloadStartEvent(track),
+                                                    );
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text('Downloading for offline...'),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                              );
+                                            },
+                                          ),
                                         ],
                                       ),
                                     );

@@ -6,6 +6,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 
 import 'blocs/audio/audio_bloc.dart';
 import 'blocs/audio/audio_state.dart';
+import 'blocs/download/download_bloc.dart';
 import 'blocs/home/home_bloc.dart';
 import 'blocs/home/home_event.dart';
 import 'blocs/storage/storage_bloc.dart';
@@ -42,6 +43,7 @@ void main() async {
         BlocProvider<StorageBloc>.value(value: storageBloc),
         BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
         BlocProvider<AudioBloc>(create: (_) => AudioBloc()),
+        BlocProvider<DownloadBloc>(create: (_) => DownloadBloc()),
         BlocProvider<HomeBloc>(
           create: (_) => HomeBloc()..add(const HomeLoadRequested()),
         ),

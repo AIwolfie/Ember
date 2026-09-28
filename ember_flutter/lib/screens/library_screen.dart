@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/audio/audio_bloc.dart';
 import '../blocs/audio/audio_event.dart';
+import '../blocs/download/download_bloc.dart';
 import '../blocs/storage/storage_bloc.dart';
 import '../blocs/storage/storage_event.dart';
 import '../blocs/storage/storage_state.dart';
@@ -104,6 +105,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           'Favorites',
                           Icons.favorite_rounded,
                         ),
+                        const SizedBox(width: 10),
+                        _buildFilterPill(
+                          'Downloads',
+                          Icons.download_done_rounded,
+                        ),
                       ],
                     ),
                   ),
@@ -115,6 +121,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
               // Conditional view based on filter
               if (_selectedFilter == 'Favorites')
                 ..._buildFavoritesOnlySlivers(context, storage)
+              else if (_selectedFilter == 'Downloads')
+                ..._buildDownloadsSlivers(context)
               else
                 ..._buildCompositeLibrarySlivers(context, storage),
 
@@ -1075,4 +1083,150 @@ class _LibraryScreenState extends State<LibraryScreen> {
       },
     );
   }
+
+  List<Widget> _buildDownloadsSlivers(BuildContext context) {
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(
+            children: [
+              const Text(
+                'Downloaded Music',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const Spacer(),
+              BlocBuilder<DownloadBloc, DownloadState>(
+                builder: (context, downloadState) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: YTColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${downloadState.downloadedTracks.length} tracks',
+                      style: TextStyle(
+                        color: YTColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      BlocBuilder<DownloadBloc, DownloadState>(
+        builder: (context, downloadState) {
+          final tracks = downloadState.downloadedTracks;
+          if (tracks.isEmpty) {
+            return SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: YTColors.surface.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.download_for_offline_rounded, size: 48, color: YTColors.primary),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'No offline downloads yet',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Tap the 3 dots on any song to download for offline playback.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: YTColors.secondary, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+
+          final trackList = tracks.map((d) => d['trackData'] as Map<String, String>).toList();
+
+          return SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final track = trackList[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      leading: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CachedNetworkImage(
+                              imageUrl: track['artworkUrl'] ?? '',
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => Container(
+                                width: 48,
+                                height: 48,
+                                color: YTColors.surfaceLight,
+                                child: const Icon(Icons.music_note, color: YTColors.secondary),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Colors.black87,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.download_done_rounded, color: Colors.greenAccent, size: 14),
+                          ),
+                        ],
+                      ),
+                      title: Text(
+                        track['title'] ?? 'Unknown',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+                      ),
+                      subtitle: Text(
+                        track['artist'] ?? 'Unknown Artist',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: YTColors.secondary, fontSize: 13),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.more_vert_rounded, color: Colors.white60),
+                        onPressed: () => SharedUI.showTrackOptions(context, track),
+                      ),
+                      onTap: () => SharedUI.playFromList(context, trackList, index),
+                    ),
+                  ),
+                );
+              },
+              childCount: trackList.length,
+            ),
+          );
+        },
+      ),
+    ];
+  }
+
 }

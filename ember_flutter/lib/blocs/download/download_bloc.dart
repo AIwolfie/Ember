@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/database_service.dart';
 import '../../services/python_service.dart';
@@ -36,6 +35,9 @@ class DownloadState {
     this.completed = const {},
     this.downloadedTracks = const [],
   });
+
+  bool isDownloaded(String videoId) => completed.containsKey(videoId);
+  bool isDownloading(String videoId) => progress.containsKey(videoId);
 
   DownloadState copyWith({
     Map<String, double>? progress,
@@ -86,7 +88,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
       return; // Already downloading or downloaded
     }
 
-    // Set 0% progress initial
+    // Set initial progress
     final newProgress = Map<String, double>.from(state.progress);
     newProgress[videoId] = 0.01;
     emit(state.copyWith(progress: newProgress));
@@ -100,26 +102,20 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
       }
 
       try {
-        final status = await Permission.audio.request();
-        final storageStatus = await Permission.storage.request();
-
-        if (status.isDenied && storageStatus.isDenied) {
-          // Both are denied, try requesting manageExternalStorage for Android 11+
-          final manageStatus = await Permission.manageExternalStorage.request();
-          if (manageStatus.isDenied) {
-            _failDownload(videoId);
-            return;
-          }
-        }
-
         Directory? dir;
         if (Platform.isAndroid) {
-          dir = Directory('/storage/emulated/0/Music/Ember');
-          if (!await dir.exists()) {
-            await dir.create(recursive: true);
-          }
-        } else {
-          dir = await getApplicationDocumentsDirectory();
+          try {
+            final extDirs = await getExternalStorageDirectories(
+              type: StorageDirectory.music,
+            );
+            if (extDirs != null && extDirs.isNotEmpty) {
+              dir = extDirs.first;
+            }
+          } catch (_) {}
+        }
+        dir ??= await getApplicationDocumentsDirectory();
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
         }
 
         final safeTitle =
