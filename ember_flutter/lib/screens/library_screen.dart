@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../blocs/audio/audio_bloc.dart';
@@ -7,11 +8,12 @@ import '../blocs/audio/audio_event.dart';
 import '../blocs/storage/storage_bloc.dart';
 import '../blocs/storage/storage_event.dart';
 import '../blocs/storage/storage_state.dart';
+import '../services/python_service.dart';
 import '../theme.dart';
+import '../utils/result.dart';
 import '../widgets/playlist_sheet.dart';
 import '../widgets/settings_sheet.dart';
 import '../widgets/shared_ui.dart';
-import 'history_screen.dart';
 import 'playlist_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -23,62 +25,6 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   String _selectedFilter = 'Playlists';
-
-  // Curated starter playlists matching the Ember design aesthetic
-  static const List<Map<String, dynamic>> _curatedPlaylists = [
-    {
-      'name': 'Chill Vibes',
-      'count': 42,
-      'gradient': [Color(0xFFE65100), Color(0xFF880E4F)],
-      'icon': Icons.wb_twilight_rounded,
-    },
-    {
-      'name': 'Late Night',
-      'count': 36,
-      'gradient': [Color(0xFF1A237E), Color(0xFF0D47A1)],
-      'icon': Icons.nightlight_round,
-    },
-    {
-      'name': 'Workout Mode',
-      'count': 28,
-      'gradient': [Color(0xFFAD1457), Color(0xFF4A148C)],
-      'icon': Icons.bolt_rounded,
-    },
-    {
-      'name': 'Focus',
-      'count': 21,
-      'gradient': [Color(0xFF1B5E20), Color(0xFF004D40)],
-      'icon': Icons.spa_rounded,
-    },
-    {
-      'name': 'My Mix',
-      'count': 58,
-      'gradient': [Color(0xFFE65100), Color(0xFFBF360C)],
-      'icon': Icons.whatshot_rounded,
-    },
-  ];
-
-  // Curated sample favorites matching screenshot when empty
-  static const List<Map<String, String>> _sampleFavorites = [
-    {
-      'videoId': 'sample_1',
-      'title': 'arijit singh songs',
-      'artist': 'Arijit Singh',
-      'artworkUrl': 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&q=80',
-    },
-    {
-      'videoId': 'sample_2',
-      'title': 'Kesariya',
-      'artist': 'Arijit Singh',
-      'artworkUrl': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&q=80',
-    },
-    {
-      'videoId': 'sample_3',
-      'title': 'Phir Kabhi',
-      'artist': 'Arijit Singh',
-      'artworkUrl': 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&q=80',
-    },
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -144,26 +90,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ),
               ),
 
-              // Category Filter Chips
+              // Category Filter Chips: Playlists and Favorites ONLY
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
+                  child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        _buildFilterPill('Playlists', Icons.music_note_rounded),
+                        _buildFilterPill('Playlists', Icons.queue_music_rounded),
                         const SizedBox(width: 10),
                         _buildFilterPill(
                           'Favorites',
-                          Icons.favorite_border_rounded,
+                          Icons.favorite_rounded,
                         ),
-                        const SizedBox(width: 10),
-                        _buildFilterPill('History', Icons.access_time_rounded),
-                        const SizedBox(width: 10),
-                        _buildFilterPill('Downloads', Icons.download_rounded),
                       ],
                     ),
                   ),
@@ -172,13 +112,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
               const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-              // Conditional view based on filter or default composite view
+              // Conditional view based on filter
               if (_selectedFilter == 'Favorites')
                 ..._buildFavoritesOnlySlivers(context, storage)
-              else if (_selectedFilter == 'History')
-                ..._buildHistoryOnlySlivers(context, storage)
-              else if (_selectedFilter == 'Downloads')
-                ..._buildDownloadsOnlySlivers(context)
               else
                 ..._buildCompositeLibrarySlivers(context, storage),
 
@@ -202,7 +138,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
               ? YTColors.primary
@@ -238,18 +174,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Composite Library View (Matching Image 2)
+  // Composite Library View: User Playlists + Real Favorites
   List<Widget> _buildCompositeLibrarySlivers(
     BuildContext context,
     StorageState storage,
   ) {
+    final playlistNames = storage.playlists.keys.toList();
+
     return [
-      // 1. Playlists Header
+      // 1. Playlists Header with Create and Import Actions
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'Playlists',
@@ -260,29 +197,59 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   letterSpacing: -0.4,
                 ),
               ),
+              const Spacer(),
+              // [+ Create] Button
               InkWell(
-                onTap: () => _showAllPlaylistsDialog(context, storage),
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 4,
+                onTap: () => showPlaylistSheet(context),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: YTColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white12),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'See All',
+                      Icon(Icons.add_rounded, color: YTColors.primary, size: 16),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Create',
                         style: TextStyle(
-                          color: YTColors.primary,
-                          fontSize: 13,
+                          color: Colors.white,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(width: 2),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: YTColors.primary,
-                        size: 16,
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // [📥 Import] Button
+              InkWell(
+                onTap: () => _showImportPlaylistDialog(context),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: YTColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.download_rounded, color: YTColors.primary, size: 16),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Import',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -293,15 +260,99 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
       ),
 
-      // Playlists List
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        sliver: SliverList(
-          delegate: SliverChildBuilderDelegate((context, index) {
-            return _buildPlaylistItem(context, storage, index);
-          }, childCount: _getPlaylistCount(storage)),
+      // Playlists List or Empty State
+      if (playlistNames.isEmpty)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              decoration: BoxDecoration(
+                color: YTColors.surface.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.queue_music_rounded,
+                    size: 40,
+                    color: YTColors.primary.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'No playlists created yet',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Create your own custom playlist or import one from YouTube or Spotify.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: YTColors.secondary, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Create'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: YTColors.primary,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        onPressed: () => showPlaylistSheet(context),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.link_rounded, size: 18),
+                        label: const Text('Import Link'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white24),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        onPressed: () => _showImportPlaylistDialog(context),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        )
+      else
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildPlaylistItem(
+                context,
+                storage,
+                playlistNames[index],
+                index,
+              ),
+              childCount: playlistNames.length,
+            ),
+          ),
         ),
-      ),
 
       const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
@@ -312,15 +363,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
                   Icon(
-                    Icons.favorite_border_rounded,
-                    color: Colors.white,
+                    Icons.favorite_rounded,
+                    color: YTColors.primary,
                     size: 20,
                   ),
-                  SizedBox(width: 8),
-                  Text(
+                  const SizedBox(width: 8),
+                  const Text(
                     'Favorites',
                     style: TextStyle(
                       color: Colors.white,
@@ -372,176 +423,95 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
       ),
 
-      // Favorites Horizontal Carousel
-      SliverToBoxAdapter(
-        child: SizedBox(
-          height: 168,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            itemCount: storage.favorites.isNotEmpty
-                ? storage.favorites.length
-                : _sampleFavorites.length,
-            itemBuilder: (context, index) {
-              final track = storage.favorites.isNotEmpty
-                  ? storage.favorites[index]
-                  : _sampleFavorites[index];
-              return _buildFavoriteCard(context, track);
-            },
-          ),
-        ),
-      ),
-
-      const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-      // 3. Recently Played Section Header
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
+      // Real Favorites Horizontal Carousel or Empty State
+      if (storage.favorites.isEmpty)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              decoration: BoxDecoration(
+                color: YTColors.surface.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: const Row(
                 children: [
                   Icon(
-                    Icons.access_time_rounded,
-                    color: Colors.white,
-                    size: 20,
+                    Icons.favorite_border_rounded,
+                    color: Colors.white38,
+                    size: 32,
                   ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Recently Played',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.4,
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'No favorites yet',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Tap ♡ on any song to save it to your favorites.',
+                          style: TextStyle(color: YTColors.secondary, fontSize: 12),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                  );
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        'See All',
-                        style: TextStyle(
-                          color: YTColors.primary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: YTColors.primary,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
+          ),
+        )
+      else
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 168,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              itemCount: storage.favorites.length,
+              itemBuilder: (context, index) {
+                final track = storage.favorites[index];
+                return _buildFavoriteCard(context, track, storage.favorites, index);
+              },
+            ),
           ),
         ),
-      ),
-
-      // Recently Played Track Item
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        sliver: SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final track = storage.playHistory.isNotEmpty
-                  ? storage.playHistory[index]
-                  : {
-                      'videoId': 'sample_weeknd',
-                      'title': 'The Weeknd - Blinding Lights',
-                      'artist': 'The Weeknd',
-                      'artworkUrl': 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=300&q=80',
-                    };
-              return _buildRecentTrackTile(context, track);
-            },
-            childCount: storage.playHistory.isNotEmpty
-                ? (storage.playHistory.length > 5
-                      ? 5
-                      : storage.playHistory.length)
-                : 1,
-          ),
-        ),
-      ),
     ];
   }
 
-  int _getPlaylistCount(StorageState storage) {
-    if (storage.playlists.isNotEmpty) {
-      return storage.playlists.length;
-    }
-    return _curatedPlaylists.length;
-  }
-
+  // Playlist Item Widget
   Widget _buildPlaylistItem(
     BuildContext context,
     StorageState storage,
+    String playlistName,
     int index,
   ) {
-    String title;
-    String subtitle;
+    final tracks = storage.playlists[playlistName] ?? [];
+    final count = tracks.length;
+    final firstArt = tracks.isNotEmpty ? (tracks.first['artworkUrl'] ?? '') : '';
+
     Widget leadingWidget;
-
-    if (storage.playlists.isNotEmpty) {
-      final key = storage.playlists.keys.elementAt(index);
-      final tracks = storage.playlists[key]!;
-      title = key;
-      subtitle = '${tracks.length} songs';
-      final firstArt = tracks.isNotEmpty
-          ? (tracks.first['artworkUrl'] ?? '')
-          : '';
-
-      if (firstArt.isNotEmpty) {
-        leadingWidget = ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: CachedNetworkImage(
-            imageUrl: firstArt,
-            width: 48,
-            height: 48,
-            fit: BoxFit.cover,
-            errorWidget: (_, __, ___) => _fallbackPlaylistArt(index),
-          ),
-        );
-      } else {
-        leadingWidget = _fallbackPlaylistArt(index);
-      }
-    } else {
-      final item = _curatedPlaylists[index];
-      title = item['name'] as String;
-      subtitle = '${item['count']} songs';
-      leadingWidget = Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            colors: item['gradient'] as List<Color>,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+    if (firstArt.isNotEmpty) {
+      leadingWidget = ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: CachedNetworkImage(
+          imageUrl: firstArt,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          errorWidget: (_, __, ___) => _fallbackPlaylistArt(index),
         ),
-        child: Icon(item['icon'] as IconData, color: Colors.white, size: 22),
       );
+    } else {
+      leadingWidget = _fallbackPlaylistArt(index);
     }
 
     return Padding(
@@ -553,7 +523,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => PlaylistScreen(playlistName: title),
+                builder: (_) => PlaylistScreen(playlistName: playlistName),
               ),
             );
           },
@@ -574,7 +544,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
+                        playlistName,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -583,7 +553,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        subtitle,
+                        '$count ${count == 1 ? 'song' : 'songs'}',
                         style: const TextStyle(
                           color: YTColors.secondary,
                           fontSize: 12,
@@ -594,11 +564,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ),
                 IconButton(
                   icon: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white70,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    if (tracks.isNotEmpty) {
+                      context.read<AudioBloc>().add(
+                        AudioPlayQueue(tracks, startIndex: 0),
+                      );
+                    }
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(
                     Icons.more_vert_rounded,
                     color: Colors.white38,
                     size: 20,
                   ),
-                  onPressed: () => _showPlaylistMenu(context, title),
+                  onPressed: () => _showPlaylistMenu(context, playlistName),
                 ),
               ],
             ),
@@ -636,13 +620,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   // Favorite Card in Horizontal Carousel
-  Widget _buildFavoriteCard(BuildContext context, Map<String, String> track) {
+  Widget _buildFavoriteCard(
+    BuildContext context,
+    Map<String, String> track,
+    List<Map<String, String>> allFavorites,
+    int index,
+  ) {
     return Container(
       width: 110,
       margin: const EdgeInsets.only(right: 14),
       child: InkWell(
         onTap: () {
-          context.read<AudioBloc>().add(AudioPlayQueue([track], startIndex: 0));
+          context.read<AudioBloc>().add(
+            AudioPlayQueue(allFavorites, startIndex: index),
+          );
         },
         borderRadius: BorderRadius.circular(12),
         child: Column(
@@ -684,8 +675,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.black38,
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -723,10 +714,52 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Recent Track Tile
-  Widget _buildRecentTrackTile(
+  // Favorites Only Filter View
+  List<Widget> _buildFavoritesOnlySlivers(
+    BuildContext context,
+    StorageState storage,
+  ) {
+    if (storage.favorites.isEmpty) {
+      return [
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+            child: Center(
+              child: Text(
+                'No favorite tracks yet.\nTap ♡ on any song to save it here.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: YTColors.secondary,
+                  fontSize: 15,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ];
+    }
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final track = storage.favorites[index];
+              return _buildFavoriteTile(context, track, storage.favorites, index);
+            },
+            childCount: storage.favorites.length,
+          ),
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildFavoriteTile(
     BuildContext context,
     Map<String, String> track,
+    List<Map<String, String>> list,
+    int index,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -735,7 +768,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         child: InkWell(
           onTap: () {
             context.read<AudioBloc>().add(
-              AudioPlayQueue([track], startIndex: 0),
+              AudioPlayQueue(list, startIndex: index),
             );
           },
           borderRadius: BorderRadius.circular(14),
@@ -807,7 +840,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ),
                   onPressed: () {
                     context.read<AudioBloc>().add(
-                      AudioPlayQueue([track], startIndex: 0),
+                      AudioPlayQueue(list, startIndex: index),
                     );
                   },
                 ),
@@ -827,109 +860,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Filter Views
-  List<Widget> _buildFavoritesOnlySlivers(
-    BuildContext context,
-    StorageState storage,
-  ) {
-    if (storage.favorites.isEmpty) {
-      return [
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-            child: Center(
-              child: Text(
-                'No favorite tracks yet.\nTap ♡ on any song to save it here.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: YTColors.secondary,
-                  fontSize: 15,
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ];
-    }
-    return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        sliver: SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) =>
-                _buildRecentTrackTile(context, storage.favorites[index]),
-            childCount: storage.favorites.length,
-          ),
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _buildHistoryOnlySlivers(
-    BuildContext context,
-    StorageState storage,
-  ) {
-    if (storage.playHistory.isEmpty) {
-      return [
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-            child: Center(
-              child: Text(
-                'No listening history yet.',
-                style: TextStyle(color: YTColors.secondary, fontSize: 15),
-              ),
-            ),
-          ),
-        ),
-      ];
-    }
-    return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        sliver: SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) =>
-                _buildRecentTrackTile(context, storage.playHistory[index]),
-            childCount: storage.playHistory.length,
-          ),
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _buildDownloadsOnlySlivers(BuildContext context) {
-    return [
-      const SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.download_done_rounded,
-                  color: Colors.white24,
-                  size: 48,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'No offline downloads yet.\nDownloaded tracks will appear here.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: YTColors.secondary,
-                    fontSize: 15,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ];
-  }
-
+  // Playlist Options Menu (Play / Delete)
   void _showPlaylistMenu(BuildContext context, String playlistName) {
     showModalBottomSheet(
       context: context,
@@ -987,62 +918,161 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  void _showAllPlaylistsDialog(BuildContext context, StorageState storage) {
+  // Import Playlist Dialog for YouTube & Spotify Links
+  void _showImportPlaylistDialog(BuildContext context) {
+    final urlCtrl = TextEditingController();
+    bool isImporting = false;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
+      backgroundColor: YTColors.surface,
       isScrollControlled: true,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.75,
-        decoration: BoxDecoration(
-          color: YTColors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                top: 24,
+                left: 20,
+                right: 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    children: [
+                      Icon(Icons.download_rounded, color: YTColors.primary, size: 24),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Import Playlist',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   const Text(
-                    'All Playlists',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                    'Paste a YouTube, YouTube Music, or Spotify playlist URL to import all tracks into Ember.',
+                    style: TextStyle(color: YTColors.secondary, fontSize: 13, height: 1.4),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: urlCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'https://music.youtube.com/playlist?list=...',
+                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                      filled: true,
+                      fillColor: YTColors.surfaceLight,
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.content_paste_rounded, color: Colors.white70),
+                        onPressed: () async {
+                          final data = await Clipboard.getData(Clipboard.kTextPlain);
+                          if (data?.text != null) {
+                            urlCtrl.text = data!.text!.trim();
+                          }
+                        },
+                        tooltip: 'Paste from clipboard',
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.add_circle_outline_rounded,
-                      color: YTColors.primary,
-                      size: 28,
+                  const SizedBox(height: 20),
+                  if (isImporting)
+                    Center(
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(color: YTColors.primary),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Fetching and resolving playlist tracks...',
+                            style: TextStyle(color: YTColors.secondary, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: YTColors.primary,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: () async {
+                          final url = urlCtrl.text.trim();
+                          if (url.isEmpty) return;
+
+                          setSheetState(() => isImporting = true);
+                          final res = await PythonService.importPlaylist(url);
+
+                          if (context.mounted) {
+                            setSheetState(() => isImporting = false);
+                            if (res is Success<Map<String, dynamic>>) {
+                              final title = res.data['title']?.toString() ?? 'Imported Playlist';
+                              final rawTracks = res.data['tracks'] as List<dynamic>? ?? [];
+                              final tracks = rawTracks.map((e) {
+                                final map = e as Map;
+                                return map.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+                              }).toList();
+
+                              if (tracks.isNotEmpty) {
+                                context.read<StorageBloc>().add(
+                                  StorageImportPlaylist(name: title, tracks: tracks),
+                                );
+                                Navigator.pop(sheetContext);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Imported "$title" with ${tracks.length} songs!'),
+                                    backgroundColor: YTColors.surfaceLight,
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('No tracks could be found in this playlist.'),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                              }
+                            } else if (res is Failure) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text((res as Failure).message),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        child: const Text(
+                          'Import Now',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      showPlaylistSheet(context);
-                    },
-                    tooltip: 'New Playlist',
-                  ),
                 ],
               ),
-            ),
-            const Divider(color: Colors.white12, height: 1),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                itemCount: _getPlaylistCount(storage),
-                itemBuilder: (c, idx) =>
-                    _buildPlaylistItem(context, storage, idx),
-              ),
-            ),
-          ],
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 }
