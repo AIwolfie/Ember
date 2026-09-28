@@ -37,10 +37,17 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Setup Shorebird
-        uses: shorebirdtech/shorebird-action@v0
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
-          shorebird-version: '1.6.123'
+          flutter-version: '3.47.5'
+          channel: 'stable'
+          cache: true
+
+      - name: Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: true
 
       - name: Get Flutter dependencies
         run: shorebird flutter pub get
