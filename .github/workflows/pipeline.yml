@@ -52,7 +52,21 @@ jobs:
         run: flutter pub get
         working-directory: ember_flutter
 
+      - name: Check Shorebird Token
+        id: check_token
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          if [ -z "$SHOREBIRD_TOKEN" ]; then
+            echo "HAS_TOKEN=false" >> $GITHUB_ENV
+            echo "IS_PATCH=false" >> $GITHUB_ENV
+            echo "No Shorebird token found! Safely falling back to standard APK build."
+          else
+            echo "HAS_TOKEN=true" >> $GITHUB_ENV
+          fi
+
       - name: Check Shorebird Releases
+        if: env.HAS_TOKEN == 'true'
         id: shorebird_check
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
@@ -67,12 +81,18 @@ jobs:
           fi
 
       - name: Create Shorebird Base Release
-        if: env.IS_PATCH == 'false'
+        if: env.HAS_TOKEN == 'true' && env.IS_PATCH == 'false'
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
           cd ember_flutter
           shorebird release android --no-confirm
+
+      - name: Build Standard APK Fallback
+        if: env.HAS_TOKEN == 'false'
+        run: |
+          cd ember_flutter
+          flutter build apk --release
 
       - name: Commit APK to repository
         if: env.IS_PATCH == 'false'
@@ -83,6 +103,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add Android_APK/
+          # Skip CI flag prevents infinite trigger loops
           git commit -m "Auto-build: Update Android_APK to v${{ env.APP_VERSION_NAME }} [skip ci]" || echo "No changes to commit"
           git push
 
@@ -99,7 +120,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Create Shorebird OTA Patch
-        if: env.IS_PATCH == 'true'
+        if: env.HAS_TOKEN == 'true' && env.IS_PATCH == 'true'
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
