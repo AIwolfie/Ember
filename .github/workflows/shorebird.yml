@@ -61,17 +61,20 @@ jobs:
       - name: Run unit test suite
         run: flutter test
 
+      - name: Diagnose Shorebird
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          cat shorebird.yaml
+          shorebird doctor -v
+          shorebird releases list
+
       - name: Publish Shorebird Android OTA Patch
         if: ${{ !inputs.dry_run }}
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
-          if [ -z "$SHOREBIRD_TOKEN" ]; then
-            echo "::error::SHOREBIRD_TOKEN secret is missing. Please set SHOREBIRD_TOKEN in GitHub repository Settings -> Secrets and variables -> Actions."
-            exit 1
-          fi
-          # Allow native diffs to handle R8 map ID bytecode variations between build runners
-          shorebird patch android --release-version=latest --allow-native-diffs --no-confirm
+          shorebird patch android --release-version=latest --allow-native-diffs --no-confirm -v
 
       - name: Validate Patch (Dry Run)
         if: ${{ inputs.dry_run }}
