@@ -29,4 +29,6 @@ Desktop.ini
 .flutter-plugins-dependencies
 .packages
 *.apk
+!Android_APK/*.apk
+!Android_APK/
 pubspec.lock
