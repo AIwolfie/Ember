@@ -37,7 +37,7 @@ jobs:
       - name: Extract version from pubspec
         id: extract_version
         run: |
-          VERSION=$(grep '^version: ' ember_flutter/pubspec.yaml | awk '{print $2}')
+          VERSION=$(grep '^version: ' ember_flutter/pubspec.yaml | awk '{print $2}' | tr -d '\r')
           echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
           VERSION_NAME=$(echo $VERSION | cut -d '+' -f 1)
           echo "APP_VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
@@ -85,7 +85,7 @@ jobs:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
           cd ember_flutter
-          shorebird release android --no-confirm
+          shorebird release android --artifact apk --no-confirm
 
       - name: Build Standard APK Fallback
         if: env.HAS_TOKEN == 'false'
@@ -97,8 +97,13 @@ jobs:
         if: env.IS_PATCH == 'false'
         run: |
           mkdir -p Android_APK
-          cp ember_flutter/build/app/outputs/flutter-apk/app-release.apk Android_APK/Ember_Latest.apk
-          cp ember_flutter/build/app/outputs/flutter-apk/app-release.apk Android_APK/Ember_v${{ env.APP_VERSION_NAME }}.apk
+          if [ -f "ember_flutter/build/app/outputs/apk/release/app-release.apk" ]; then
+            cp ember_flutter/build/app/outputs/apk/release/app-release.apk Android_APK/Ember_Latest.apk
+            cp ember_flutter/build/app/outputs/apk/release/app-release.apk Android_APK/Ember_v${{ env.APP_VERSION_NAME }}.apk
+          else
+            cp ember_flutter/build/app/outputs/flutter-apk/app-release.apk Android_APK/Ember_Latest.apk
+            cp ember_flutter/build/app/outputs/flutter-apk/app-release.apk Android_APK/Ember_v${{ env.APP_VERSION_NAME }}.apk
+          fi
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add Android_APK/
@@ -124,4 +129,4 @@ jobs:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
           cd ember_flutter
-          shorebird patch android --release-version=${{ env.APP_VERSION }} --allow-native-diffs --allow-asset-diffs --no-confirm
+          shorebird patch android --allow-native-diffs --allow-asset-diffs --no-confirm

@@ -1,9 +1,7 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:shorebird_code_push/shorebird_code_push.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../blocs/storage/storage_bloc.dart';
 import '../blocs/storage/storage_event.dart';
@@ -12,372 +10,321 @@ import '../services/update_service.dart';
 import '../theme.dart';
 
 void showSettingsSheet(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    builder: (ctx) => const SettingsSheet(),
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const SettingsScreen()),
   );
 }
 
-class SettingsSheet extends StatelessWidget {
-  const SettingsSheet({super.key});
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ThemeCubit, EmberThemeOption>(
       builder: (context, activeTheme) {
-        return ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              color: YTColors.surface.withValues(alpha: 0.92),
-              padding: EdgeInsets.only(
-                top: 12,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+        return Scaffold(
+          backgroundColor: YTColors.background,
+          appBar: AppBar(
+            backgroundColor: YTColors.background,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: const Text(
+              'Settings',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
+            ),
+          ),
+          body: ListView(
+            physics: const ClampingScrollPhysics(),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom + 32,
+            ),
+            children: [
+              const Divider(color: Colors.white12, height: 1),
+              const SizedBox(height: 16),
+
+              // Theme selector header
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Drag pill
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 5,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(3),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.palette_rounded,
+                          color: YTColors.primary,
+                          size: 20,
                         ),
-                      ),
-                    ),
-
-                    // Header
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 4,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.settings_rounded,
-                                color: YTColors.primary,
-                                size: 26,
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Settings',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Theme Palette',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.close_rounded,
-                              color: Colors.white70,
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const Divider(color: Colors.white12, height: 24),
-
-                    // Theme selector header
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.palette_rounded,
-                                color: YTColors.primary,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Theme Palette',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Customize the visual ambience across your player',
-                            style: TextStyle(
-                              color: YTColors.secondary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // 5 Handcrafted Theme Cards
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: EmberThemes.all.map((theme) {
-                          final isSelected = theme.id == activeTheme.id;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () {
-                                  context.read<ThemeCubit>().setTheme(theme);
-                                },
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? theme.primary.withValues(alpha: 0.14)
-                                        : YTColors.surfaceLight.withValues(
-                                            alpha: 0.4,
-                                          ),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? theme.primary
-                                          : Colors.white.withValues(
-                                              alpha: 0.08,
-                                            ),
-                                      width: isSelected ? 1.8 : 1.0,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      // Theme Swatch circle
-                                      Container(
-                                        width: 36,
-                                        height: 36,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              theme.primary,
-                                              theme.accent,
-                                              theme.background,
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: theme.primary.withValues(
-                                                alpha: 0.35,
-                                              ),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              theme.name,
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16,
-                                                fontWeight: isSelected
-                                                    ? FontWeight.bold
-                                                    : FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              theme.description,
-                                              style: const TextStyle(
-                                                color: YTColors.secondary,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (isSelected)
-                                        Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: BoxDecoration(
-                                            color: theme.primary,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.check_rounded,
-                                            color: Colors.black,
-                                            size: 16,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-
-                    const Divider(color: Colors.white12, height: 32),
-
-                    // Storage and Data Actions
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.storage_rounded,
-                            color: YTColors.primary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Data & History',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    ListTile(
-                      leading: const Icon(
-                        Icons.clear_all_rounded,
-                        color: Colors.white70,
-                      ),
-                      title: const Text(
-                        'Clear Search History',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      subtitle: const Text(
-                        'Remove all stored recent search queries',
-                        style: TextStyle(
-                          color: YTColors.secondary,
-                          fontSize: 12,
                         ),
-                      ),
-                      onTap: () {
-                        context.read<StorageBloc>().add(StorageClearSearch());
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Search history cleared'),
-                          ),
-                        );
-                      },
+                      ],
                     ),
-
-                    ListTile(
-                      leading: const Icon(
-                        Icons.history_toggle_off_rounded,
-                        color: Colors.white70,
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Customize the visual ambience across your player',
+                      style: TextStyle(
+                        color: YTColors.secondary,
+                        fontSize: 13,
                       ),
-                      title: const Text(
-                        'Clear Playback History',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      subtitle: const Text(
-                        'Remove recently played tracks',
-                        style: TextStyle(
-                          color: YTColors.secondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                      onTap: () {
-                        context.read<StorageBloc>().add(
-                          StorageClearPlayHistory(),
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Playback history cleared'),
-                          ),
-                        );
-                      },
                     ),
-
-                    const Divider(color: Colors.white12, height: 32),
-
-                    // Updates (Shorebird OTA)
-                    const _UpdateSection(),
-
-                    const Divider(color: Colors.white12, height: 32),
-
-                    // About Link
-                    ListTile(
-                      leading: const Icon(
-                        Icons.info_outline_rounded,
-                        color: Colors.white70,
-                      ),
-                      title: const Text(
-                        'About Ember',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: const Text(
-                        'v1.0.0 • Mayank Malaviya & Kenil Ribadiya',
-                        style: TextStyle(
-                          color: YTColors.secondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                      trailing: const Icon(
-                        Icons.chevron_right_rounded,
-                        color: Colors.white38,
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AboutScreen(),
-                          ),
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
                   ],
                 ),
               ),
-            ),
+
+              const SizedBox(height: 8),
+
+              // 5 Handcrafted Theme Cards
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: EmberThemes.all.map((theme) {
+                    final isSelected = theme.id == activeTheme.id;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            context.read<ThemeCubit>().setTheme(theme);
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? theme.primary.withValues(alpha: 0.14)
+                                  : YTColors.surfaceLight.withValues(
+                                      alpha: 0.4,
+                                    ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSelected
+                                    ? theme.primary
+                                    : Colors.white.withValues(
+                                        alpha: 0.08,
+                                      ),
+                                width: isSelected ? 1.8 : 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                // Theme Swatch circle
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        theme.primary,
+                                        theme.accent,
+                                        theme.background,
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: theme.primary.withValues(
+                                          alpha: 0.35,
+                                        ),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        theme.name,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        theme.description,
+                                        style: const TextStyle(
+                                          color: YTColors.secondary,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected)
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: theme.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check_rounded,
+                                      color: Colors.black,
+                                      size: 16,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              const Divider(color: Colors.white12, height: 32),
+
+              // Storage and Data Actions
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.storage_rounded,
+                      color: YTColors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Data & History',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              ListTile(
+                leading: const Icon(
+                  Icons.clear_all_rounded,
+                  color: Colors.white70,
+                ),
+                title: const Text(
+                  'Clear Search History',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Remove all stored recent search queries',
+                  style: TextStyle(
+                    color: YTColors.secondary,
+                    fontSize: 12,
+                  ),
+                ),
+                onTap: () {
+                  context.read<StorageBloc>().add(StorageClearSearch());
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Search history cleared'),
+                    ),
+                  );
+                },
+              ),
+
+              ListTile(
+                leading: const Icon(
+                  Icons.history_toggle_off_rounded,
+                  color: Colors.white70,
+                ),
+                title: const Text(
+                  'Clear Playback History',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Remove recently played tracks',
+                  style: TextStyle(
+                    color: YTColors.secondary,
+                    fontSize: 12,
+                  ),
+                ),
+                onTap: () {
+                  context.read<StorageBloc>().add(
+                        StorageClearPlayHistory(),
+                      );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Playback history cleared'),
+                    ),
+                  );
+                },
+              ),
+
+              const Divider(color: Colors.white12, height: 32),
+
+              // Updates (Shorebird OTA)
+              const _UpdateSection(),
+
+              const Divider(color: Colors.white12, height: 32),
+
+              // About Link
+              ListTile(
+                leading: const Icon(
+                  Icons.info_outline_rounded,
+                  color: Colors.white70,
+                ),
+                title: const Text(
+                  'About Ember',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: const Text(
+                  'v1.0.0 • Mayank Malaviya & Kenil Ribadiya',
+                  style: TextStyle(
+                    color: YTColors.secondary,
+                    fontSize: 12,
+                  ),
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white38,
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AboutScreen(),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 16),
+            ],
           ),
         );
       },
@@ -439,6 +386,15 @@ class _UpdateSectionState extends State<_UpdateSection> {
   }
 
   Future<void> _applyUpdate() async {
+    final apkUrl = UpdateService.instance.availableApkUrl;
+    if (apkUrl != null) {
+      final uri = Uri.parse(apkUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return;
+    }
+
     setState(() {
       _downloading = true;
     });
@@ -460,9 +416,7 @@ class _UpdateSectionState extends State<_UpdateSection> {
   Widget build(BuildContext context) {
     final isOutdated = _status == UpdateStatus.outdated;
     final isRestartRequired = _status == UpdateStatus.restartRequired;
-    final versionDisplay = _patchNumber != null
-        ? 'Version 1.0.0 • Patch $_patchNumber'
-        : 'Version 1.0.0';
+    final versionDisplay = _patchNumber != null ? 'Version 1.0.0 • Patch $_patchNumber' : 'Version 1.0.0';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -472,9 +426,7 @@ class _UpdateSectionState extends State<_UpdateSection> {
           color: YTColors.surfaceLight.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isOutdated
-                ? YTColors.primary
-                : Colors.white.withValues(alpha: 0.06),
+            color: isOutdated ? YTColors.primary : Colors.white.withValues(alpha: 0.06),
             width: isOutdated ? 1.5 : 1.0,
           ),
         ),
@@ -484,9 +436,7 @@ class _UpdateSectionState extends State<_UpdateSection> {
             Row(
               children: [
                 Icon(
-                  isOutdated
-                      ? Icons.system_update_rounded
-                      : Icons.cloud_done_rounded,
+                  isOutdated ? Icons.system_update_rounded : Icons.cloud_done_rounded,
                   color: isOutdated ? YTColors.primary : Colors.white70,
                   size: 20,
                 ),

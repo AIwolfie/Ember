@@ -5,7 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UpdateChecker {
-  static const String _repoUrl = 'https://api.github.com/repos/KenilPatel0/Ember/releases/latest';
+  static const String _repoUrl = 'https://api.github.com/repos/AIwolfie/Ember/contents/Android_APK';
 
   static Future<void> checkForUpdate(BuildContext context) async {
     try {
@@ -14,17 +14,23 @@ class UpdateChecker {
 
       final response = await http.get(Uri.parse(_repoUrl));
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        String latestVersion = data['tag_name'] as String;
+        final List<dynamic> files = jsonDecode(response.body);
         
-        // Remove 'v' prefix if present
-        if (latestVersion.startsWith('v')) {
-          latestVersion = latestVersion.substring(1);
+        String latestVersion = '0.0.0';
+        String downloadUrl = 'https://github.com/AIwolfie/Ember/raw/main/Android_APK/Ember_Latest.apk';
+
+        for (var file in files) {
+          final String name = file['name'] as String;
+          if (name.startsWith('Ember_v') && name.endsWith('.apk')) {
+            final version = name.replaceFirst('Ember_v', '').replaceAll('.apk', '');
+            if (_isNewerVersion(latestVersion, version)) {
+              latestVersion = version;
+            }
+          }
         }
 
-        // Simple version comparison
+        // Simple version comparison against currently running version
         if (_isNewerVersion(currentVersion, latestVersion)) {
-          final downloadUrl = data['html_url'] as String;
           if (context.mounted) {
             _showUpdateDialog(context, latestVersion, downloadUrl);
           }

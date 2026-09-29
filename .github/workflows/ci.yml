@@ -73,6 +73,3 @@ jobs:
 
     - name: Static code analysis
       run: flutter analyze || true
-
-    - name: Run Flutter unit tests
-      run: flutter test

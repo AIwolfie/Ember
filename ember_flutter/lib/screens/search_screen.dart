@@ -67,9 +67,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (mounted) {
       if (result is Success<List<Map<String, String>>>) {
         setState(() {
-          final items = result.data
-              .map((e) => Map<String, String>.from(e))
-              .toList();
+          final items = result.data.map((e) => Map<String, String>.from(e)).toList();
           _results = SearchAlgorithm.optimizeResults(items, query);
           _isLoading = false;
         });
@@ -129,29 +127,24 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: YTColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          _buildModernAppBar(),
-          SliverPadding(
-            padding: const EdgeInsets.only(bottom: 120),
-            sliver: _buildMainContent(),
-          ),
-        ],
-      ),
+    return BlocBuilder<ThemeCubit, EmberThemeOption>(
+      builder: (context, themeOption) {
+        return Scaffold(
+          backgroundColor: YTColors.background,
+          appBar: _buildModernAppBar(),
+          body: _buildMainContent(),
+        );
+      },
     );
   }
 
-  Widget _buildModernAppBar() {
-    return SliverAppBar(
-      backgroundColor: YTColors.background.withValues(alpha: 0.95),
-      elevation: 0,
-      pinned: true,
-      surfaceTintColor: Colors.transparent,
+  PreferredSizeWidget _buildModernAppBar() {
+    return AppBar(
       titleSpacing: 16,
       toolbarHeight: 64,
+      backgroundColor: YTColors.background,
+      elevation: 0,
+      automaticallyImplyLeading: false, // No leading back button needed in main search tab
       title: Padding(
         padding: const EdgeInsets.only(right: 16.0),
         child: Hero(
@@ -234,50 +227,55 @@ class _SearchScreenState extends State<SearchScreen> {
             border: Border(bottom: BorderSide(color: Colors.white10)),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: _filters.map((filter) {
-                final isSelected = _currentFilter == filter;
-                return InkWell(
-                  onTap: () {
-                    if (_currentFilter != filter) {
-                      setState(() => _currentFilter = filter);
-                      EasyDebounce.debounce(
-                        'search-filter-debounce',
-                        const Duration(milliseconds: 300),
-                        () => _performSearch(_searchController.text),
-                      );
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(24),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.white : Colors.transparent,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: _filters.map((filter) {
+                  final isSelected = _currentFilter == filter;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: InkWell(
+                      onTap: () {
+                        if (_currentFilter != filter) {
+                          setState(() => _currentFilter = filter);
+                          EasyDebounce.debounce(
+                            'search-filter-debounce',
+                            const Duration(milliseconds: 300),
+                            () => _performSearch(_searchController.text),
+                          );
+                        }
+                      },
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: isSelected ? Colors.white : Colors.white24,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : Colors.transparent,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: isSelected ? Colors.white : Colors.white24,
+                          ),
+                        ),
+                        child: Text(
+                          filter,
+                          style: TextStyle(
+                            color: isSelected ? Colors.black : Colors.white,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 13,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
                       ),
                     ),
-                    child: Text(
-                      filter,
-                      style: TextStyle(
-                        color: isSelected ? Colors.black : Colors.white,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.w500,
-                        fontSize: 13,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ),
@@ -287,9 +285,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildMainContent() {
     if (_isLoading) {
-      return const SliverFillRemaining(
-        child: Center(child: CircularProgressIndicator(color: Colors.white)),
-      );
+      return const Center(child: CircularProgressIndicator(color: Colors.white));
     }
 
     if (!_hasSearched) {
@@ -300,29 +296,29 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     if (_results.isEmpty) {
-      return const SliverFillRemaining(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.search_off, size: 64, color: Colors.white24),
-              SizedBox(height: 16),
-              Text(
-                'No results found.',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.white24),
+            SizedBox(height: 16),
+            Text(
+              'No results found.',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
 
-    return SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 120),
+      itemCount: _results.length,
+      itemBuilder: (context, index) {
         final track = _results[index];
         final type = track['type'] ?? 'song';
 
@@ -368,7 +364,7 @@ class _SearchScreenState extends State<SearchScreen> {
           type: type,
           onTap: (t, type) => _handleResultTap(t, type),
         );
-      }, childCount: _results.length),
+      },
     );
   }
 }
@@ -387,11 +383,7 @@ class _TopResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     bool isArtist = type == 'artist';
-    bool showPlayOverlay =
-        type == 'song' ||
-        type == 'video' ||
-        type == 'album' ||
-        type == 'playlist';
+    bool showPlayOverlay = type == 'song' || type == 'video' || type == 'album' || type == 'playlist';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -518,9 +510,7 @@ class _StandardListItem extends StatelessWidget {
     bool isArtist = type == 'artist';
     return InkWell(
       onTap: () => onTap(track, type),
-      onLongPress: (type == 'song' || type == 'video')
-          ? () => SharedUI.showTrackOptions(context, track)
-          : null,
+      onLongPress: (type == 'song' || type == 'video') ? () => SharedUI.showTrackOptions(context, track) : null,
       splashColor: Colors.white12,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -570,8 +560,7 @@ class _StandardListItem extends StatelessWidget {
                           size: 14,
                           color: YTColors.secondary,
                         ),
-                      if (type == 'song' || type == 'video')
-                        const SizedBox(width: 4),
+                      if (type == 'song' || type == 'video') const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           SearchAlgorithm.getSubtitle(
@@ -629,38 +618,37 @@ class _HistorySliver extends StatelessWidget {
         final history = storageState.searchHistory;
 
         if (history.isEmpty) {
-          return const SliverFillRemaining(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.youtube_searched_for,
-                    size: 72,
-                    color: Colors.white10,
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.youtube_searched_for,
+                  size: 72,
+                  color: Colors.white10,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Search for your favorites',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
                   ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Search for your favorites',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Songs, albums, artists and more.',
-                    style: TextStyle(color: Colors.white38, fontSize: 14),
-                  ),
-                ],
-              ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Songs, albums, artists and more.',
+                  style: TextStyle(color: Colors.white38, fontSize: 14),
+                ),
+              ],
             ),
           );
         }
 
-        return SliverList(
-          delegate: SliverChildListDelegate([
+        return ListView(
+          padding: const EdgeInsets.only(bottom: 120),
+          children: [
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
@@ -678,8 +666,7 @@ class _HistorySliver extends StatelessWidget {
                     ),
                   ),
                   TextButton(
-                    onPressed: () =>
-                        context.read<StorageBloc>().add(StorageClearSearch()),
+                    onPressed: () => context.read<StorageBloc>().add(StorageClearSearch()),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: const Size(50, 30),
@@ -739,7 +726,7 @@ class _HistorySliver extends StatelessWidget {
                 }).toList(),
               ),
             ),
-          ]),
+          ],
         );
       },
     );

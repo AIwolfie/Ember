@@ -9,6 +9,7 @@ import '../blocs/storage/storage_state.dart';
 import '../blocs/storage/storage_event.dart';
 import '../theme.dart';
 import '../widgets/mini_player.dart';
+import '../widgets/ember_app_bar.dart';
 import 'full_player_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
@@ -43,17 +44,8 @@ class HistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: YTColors.background,
-      appBar: AppBar(
-        title: Text(
-          'Recent History',
-          style: TextStyle(
-            color: YTColors.primary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: YTColors.background,
-        elevation: 0,
-        leading: BackButton(color: YTColors.primary),
+      appBar: EmberAppBar(
+        titleText: 'Recent History',
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline, color: YTColors.secondary),
@@ -90,7 +82,7 @@ class HistoryScreen extends StatelessWidget {
               }
 
               return ListView.builder(
-                physics: const BouncingScrollPhysics(),
+                physics: const ClampingScrollPhysics(),
                 padding: const EdgeInsets.only(bottom: 100, top: 16),
                 itemCount: history.length,
                 itemBuilder: (context, index) {
