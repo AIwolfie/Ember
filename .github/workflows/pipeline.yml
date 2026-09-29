@@ -1,0 +1,127 @@
+name: Ember Update Pipeline (OTA & Release)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ember_flutter/**'
+      - '.github/workflows/pipeline.yml'
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Extract version from pubspec
+        id: extract_version
+        run: |
+          VERSION=$(grep '^version: ' ember_flutter/pubspec.yaml | awk '{print $2}')
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          VERSION_NAME=$(echo $VERSION | cut -d '+' -f 1)
+          echo "APP_VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          
+      - name: Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: true
+
+      - name: Get Dependencies
+        run: flutter pub get
+        working-directory: ember_flutter
+
+      - name: Check Shorebird Token
+        id: check_token
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          if [ -z "$SHOREBIRD_TOKEN" ]; then
+            echo "HAS_TOKEN=false" >> $GITHUB_ENV
+            echo "IS_PATCH=false" >> $GITHUB_ENV
+            echo "No Shorebird token found! Safely falling back to standard APK build."
+          else
+            echo "HAS_TOKEN=true" >> $GITHUB_ENV
+          fi
+
+      - name: Check Shorebird Releases
+        if: env.HAS_TOKEN == 'true'
+        id: shorebird_check
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          cd ember_flutter
+          if shorebird releases list | grep -q "${{ env.APP_VERSION }}"; then
+            echo "IS_PATCH=true" >> $GITHUB_ENV
+            echo "Branch version exists. We will push an OTA PATCH."
+          else
+            echo "IS_PATCH=false" >> $GITHUB_ENV
+            echo "Branch version is NEW. We will release a BASE APK."
+          fi
+
+      - name: Create Shorebird Base Release
+        if: env.HAS_TOKEN == 'true' && env.IS_PATCH == 'false'
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          cd ember_flutter
+          shorebird release android --no-confirm
+
+      - name: Build Standard APK Fallback
+        if: env.HAS_TOKEN == 'false'
+        run: |
+          cd ember_flutter
+          flutter build apk --release
+
+      - name: Commit APK to repository
+        if: env.IS_PATCH == 'false'
+        run: |
+          mkdir -p Android_APK
+          cp ember_flutter/build/app/outputs/flutter-apk/app-release.apk Android_APK/Ember_Latest.apk
+          cp ember_flutter/build/app/outputs/flutter-apk/app-release.apk Android_APK/Ember_v${{ env.APP_VERSION_NAME }}.apk
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add Android_APK/
+          # Skip CI flag prevents infinite trigger loops
+          git commit -m "Auto-build: Update Android_APK to v${{ env.APP_VERSION_NAME }} [skip ci]" || echo "No changes to commit"
+          git push
+
+      - name: Create GitHub Release
+        if: env.IS_PATCH == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.APP_VERSION_NAME }}
+          name: Auto Release v${{ env.APP_VERSION_NAME }}
+          files: |
+            Android_APK/Ember_Latest.apk
+            Android_APK/Ember_v${{ env.APP_VERSION_NAME }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Create Shorebird OTA Patch
+        if: env.HAS_TOKEN == 'true' && env.IS_PATCH == 'true'
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          cd ember_flutter
+          shorebird patch android --release-version=${{ env.APP_VERSION }} --allow-native-diffs --allow-asset-diffs --no-confirm

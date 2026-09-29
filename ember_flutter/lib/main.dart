@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'utils/update_checker.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
 import 'blocs/audio/audio_bloc.dart';
@@ -80,6 +81,37 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateChecker.checkForUpdate(context);
+    });
+
+    UpdateService.instance.onUpdateReady.listen((ready) {
+      if (ready && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'A background update has been installed! Please restart the app.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFF1E1E1E),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(hours: 24),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.orangeAccent,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

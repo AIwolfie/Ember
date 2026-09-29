@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ember_flutter"
+    namespace = "com.ember.app"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.ember_flutter"
+        applicationId = "com.ember.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
@@ -36,11 +36,18 @@ android {
     }
 
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("ember.jks")
+            storePassword = "ember2026"
+            keyAlias = "ember2026"
+            keyPassword = "ember2026"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

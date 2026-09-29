@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 
@@ -8,6 +9,9 @@ class UpdateService {
   final ShorebirdUpdater _updater = ShorebirdUpdater();
 
   bool get isAvailable => _updater.isAvailable;
+
+  final _updateStreamController = StreamController<bool>.broadcast();
+  Stream<bool> get onUpdateReady => _updateStreamController.stream;
 
   /// Silently checks for and downloads pending patches in the background.
   /// Designed to run during app startup without blocking UI or audio streaming.
@@ -31,8 +35,10 @@ class UpdateService {
           debugPrint(
             '[Shorebird] Patch downloaded successfully. It will activate on next launch.',
           );
+          _updateStreamController.add(true);
         } else if (status == UpdateStatus.restartRequired) {
           debugPrint('[Shorebird] Patch is ready. Restart required to apply.');
+          _updateStreamController.add(true);
         } else {
           debugPrint('[Shorebird] Ember is up to date.');
         }
