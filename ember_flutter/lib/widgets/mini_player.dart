@@ -45,15 +45,6 @@ class MiniPlayer extends StatelessWidget {
               }
             }
           },
-          onHorizontalDragEnd: (details) {
-            if (details.primaryVelocity != null) {
-              if (details.primaryVelocity! < -300) {
-                audioBloc.add(AudioSeekToNext());
-              } else if (details.primaryVelocity! > 300) {
-                audioBloc.add(AudioSeekToPrevious());
-              }
-            }
-          },
           onTap: () => _openFullPlayer(context),
           child: ClipRect(
             child: BackdropFilter(
@@ -63,176 +54,196 @@ class MiniPlayer extends StatelessWidget {
                     state.dominantColor?.withValues(alpha: 0.75) ??
                     YTColors.surface.withValues(alpha: 0.85),
                 height: 64,
-                child: Stack(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: CachedNetworkImage(
-                              imageUrl: track['artworkUrl'] ?? '',
-                              width: 44,
-                              height: 44,
-                              fit: BoxFit.cover,
-                              placeholder: (c, u) => Container(
+                child: Dismissible(
+                  key: ValueKey(
+                    '${track['videoId']}_${state.queue.indexOf(track)}',
+                  ),
+                  direction: DismissDirection.horizontal,
+                  confirmDismiss: (direction) async {
+                    if (direction == DismissDirection.endToStart) {
+                      audioBloc.add(AudioSeekToNext());
+                    } else if (direction == DismissDirection.startToEnd) {
+                      audioBloc.add(AudioSeekToPrevious());
+                    }
+                    return false;
+                  },
+                  child: Stack(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: CachedNetworkImage(
+                                imageUrl: track['artworkUrl'] ?? '',
                                 width: 44,
                                 height: 44,
-                                color: YTColors.surfaceLight,
-                              ),
-                              errorWidget: (c, e, s) => Container(
-                                width: 44,
-                                height: 44,
-                                color: YTColors.surfaceLight,
-                                child: const Icon(
-                                  Icons.music_note,
-                                  color: YTColors.secondary,
+                                fit: BoxFit.cover,
+                                placeholder: (c, u) => Container(
+                                  width: 44,
+                                  height: 44,
+                                  color: YTColors.surfaceLight,
                                 ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  track['title'] ?? 'Unknown',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    color: YTColors.primary,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  track['artist'] ?? 'Unknown Artist',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                errorWidget: (c, e, s) => Container(
+                                  width: 44,
+                                  height: 44,
+                                  color: YTColors.surfaceLight,
+                                  child: const Icon(
+                                    Icons.music_note,
                                     color: YTColors.secondary,
-                                    fontSize: 13,
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                          BlocBuilder<StorageBloc, StorageState>(
-                            builder: (context, storage) {
-                              final isFav = storage.isFavorite(
-                                track['videoId']!,
-                              );
-                              return IconButton(
-                                icon: Icon(
-                                  isFav
-                                      ? Icons.thumb_up
-                                      : Icons.thumb_up_outlined,
-                                  color: YTColors.primary,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  context.read<StorageBloc>().add(
-                                    StorageToggleFavorite(track),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                          Builder(
-                            builder: (context) {
-                              Widget playPauseBtn;
-                              if (processingState == ProcessingState.loading ||
-                                  processingState ==
-                                      ProcessingState.buffering) {
-                                playPauseBtn = Padding(
-                                  key: const ValueKey('loading'),
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    track['title'] ?? 'Unknown',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
                                       color: YTColors.primary,
+                                      fontSize: 15,
                                     ),
                                   ),
-                                );
-                              } else if (playing) {
-                                playPauseBtn = IconButton(
-                                  key: const ValueKey('pause'),
-                                  icon: Icon(
-                                    Icons.pause,
-                                    color: YTColors.primary,
-                                    size: 28,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    track['artist'] ?? 'Unknown Artist',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: YTColors.secondary,
+                                      fontSize: 13,
+                                    ),
                                   ),
-                                  onPressed: () => audioBloc.add(AudioPause()),
-                                );
-                              } else {
-                                playPauseBtn = IconButton(
-                                  key: const ValueKey('play'),
-                                  icon: Icon(
-                                    Icons.play_arrow,
-                                    color: YTColors.primary,
-                                    size: 28,
-                                  ),
-                                  onPressed: () => audioBloc.add(AudioResume()),
-                                );
-                              }
-                              return AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 250),
-                                transitionBuilder: (child, anim) =>
-                                    ScaleTransition(scale: anim, child: child),
-                                child: playPauseBtn,
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.skip_next,
-                              color: YTColors.primary,
-                              size: 28,
+                                ],
+                              ),
                             ),
-                            onPressed: () => audioBloc.add(AudioSeekToNext()),
-                          ),
-                        ],
+                            BlocBuilder<StorageBloc, StorageState>(
+                              builder: (context, storage) {
+                                final isFav = storage.isFavorite(
+                                  track['videoId']!,
+                                );
+                                return IconButton(
+                                  icon: Icon(
+                                    isFav
+                                        ? Icons.thumb_up
+                                        : Icons.thumb_up_outlined,
+                                    color: YTColors.primary,
+                                    size: 20,
+                                  ),
+                                  onPressed: () {
+                                    context.read<StorageBloc>().add(
+                                      StorageToggleFavorite(track),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                            Builder(
+                              builder: (context) {
+                                Widget playPauseBtn;
+                                if (processingState ==
+                                        ProcessingState.loading ||
+                                    processingState ==
+                                        ProcessingState.buffering) {
+                                  playPauseBtn = Padding(
+                                    key: const ValueKey('loading'),
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: YTColors.primary,
+                                      ),
+                                    ),
+                                  );
+                                } else if (playing) {
+                                  playPauseBtn = IconButton(
+                                    key: const ValueKey('pause'),
+                                    icon: Icon(
+                                      Icons.pause,
+                                      color: YTColors.primary,
+                                      size: 28,
+                                    ),
+                                    onPressed: () =>
+                                        audioBloc.add(AudioPause()),
+                                  );
+                                } else {
+                                  playPauseBtn = IconButton(
+                                    key: const ValueKey('play'),
+                                    icon: Icon(
+                                      Icons.play_arrow,
+                                      color: YTColors.primary,
+                                      size: 28,
+                                    ),
+                                    onPressed: () =>
+                                        audioBloc.add(AudioResume()),
+                                  );
+                                }
+                                return AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 250),
+                                  transitionBuilder: (child, anim) =>
+                                      ScaleTransition(
+                                        scale: anim,
+                                        child: child,
+                                      ),
+                                  child: playPauseBtn,
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.skip_next,
+                                color: YTColors.primary,
+                                size: 28,
+                              ),
+                              onPressed: () => audioBloc.add(AudioSeekToNext()),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: StreamBuilder<Duration>(
-                        stream: audioBloc.player.positionStream,
-                        builder: (context, posSnap) {
-                          return StreamBuilder<Duration?>(
-                            stream: audioBloc.player.durationStream,
-                            builder: (context, durSnap) {
-                              final duration = durSnap.data ?? Duration.zero;
-                              final position = posSnap.data ?? Duration.zero;
-                              double progress = 0.0;
-                              if (duration.inMilliseconds > 0) {
-                                progress =
-                                    position.inMilliseconds /
-                                    duration.inMilliseconds;
-                                progress = progress.clamp(0.0, 1.0);
-                              }
-                              return LinearProgressIndicator(
-                                value: progress,
-                                backgroundColor: Colors.transparent,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  YTColors.primary,
-                                ),
-                                minHeight: 1.5,
-                              );
-                            },
-                          );
-                        },
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: StreamBuilder<Duration>(
+                          stream: audioBloc.player.positionStream,
+                          builder: (context, posSnap) {
+                            return StreamBuilder<Duration?>(
+                              stream: audioBloc.player.durationStream,
+                              builder: (context, durSnap) {
+                                final duration = durSnap.data ?? Duration.zero;
+                                final position = posSnap.data ?? Duration.zero;
+                                double progress = 0.0;
+                                if (duration.inMilliseconds > 0) {
+                                  progress =
+                                      position.inMilliseconds /
+                                      duration.inMilliseconds;
+                                  progress = progress.clamp(0.0, 1.0);
+                                }
+                                return LinearProgressIndicator(
+                                  value: progress,
+                                  backgroundColor: Colors.transparent,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    YTColors.primary,
+                                  ),
+                                  minHeight: 1.5,
+                                );
+                              },
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -243,13 +254,17 @@ class MiniPlayer extends StatelessWidget {
   }
 
   void _openFullPlayer(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      enableDrag: true,
-      useSafeArea: false,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const FullPlayerScreen(),
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const FullPlayerScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(0.0, 1.0);
+          const end = Offset.zero;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.fastOutSlowIn));
+          return SlideTransition(position: animation.drive(tween), child: child);
+        },
+      ),
     );
   }
 }

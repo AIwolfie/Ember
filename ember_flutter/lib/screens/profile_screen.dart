@@ -19,13 +19,15 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<StorageBloc, StorageState>(
-      builder: (context, storage) {
-        int customPlaylistsCount = storage.playlists.length;
-        int favoritesCount = storage.favorites.length;
+    return BlocBuilder<ThemeCubit, EmberThemeOption>(
+      builder: (context, themeOption) {
+        return BlocBuilder<StorageBloc, StorageState>(
+          builder: (context, storage) {
+            int customPlaylistsCount = storage.playlists.length;
+            int favoritesCount = storage.favorites.length;
 
-        return Scaffold(
-          backgroundColor: YTColors.background,
+            return Scaffold(
+              backgroundColor: YTColors.background,
           body: CustomScrollView(
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
@@ -241,7 +243,8 @@ class ProfileScreen extends StatelessWidget {
           ),
         );
       },
-    );
+      );
+    });
   }
 
   Widget _buildBentoCard(

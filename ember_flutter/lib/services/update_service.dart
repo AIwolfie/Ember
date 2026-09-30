@@ -1,5 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 class UpdateService {
@@ -48,9 +52,49 @@ class UpdateService {
     });
   }
 
-  /// Checks whether an OTA update is available.
+  String? availableApkUrl;
+
+  /// Checks whether an OTA update or completely new base APK is available.
   Future<UpdateStatus> checkForUpdate() async {
+    availableApkUrl = null;
+
+    // 1. Check for Base APK Updates (GitHub Releases)
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final currentVersion = info.version;
+
+      final res = await http.get(Uri.parse('https://api.github.com/repos/KenilPatel0/Ember/releases/latest'));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final tagName = (data['tag_name'] as String).replaceAll('v', '').trim();
+
+        final currentParts = currentVersion.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+        final remoteParts = tagName.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+
+        bool isApkOutdated = false;
+        for (int i = 0; i < 3; i++) {
+          final c = i < currentParts.length ? currentParts[i] : 0;
+          final r = i < remoteParts.length ? remoteParts[i] : 0;
+          if (r > c) {
+            isApkOutdated = true;
+            break;
+          } else if (r < c) {
+            break;
+          }
+        }
+
+        if (isApkOutdated) {
+          availableApkUrl = data['html_url'];
+          return UpdateStatus.outdated;
+        }
+      }
+    } catch (e) {
+      debugPrint('[GitHub] Update check error: $e');
+    }
+
+    // 2. Check for Shorebird OTA patch
     if (!isAvailable) return UpdateStatus.unavailable;
+
     try {
       return await _updater.checkForUpdate();
     } catch (e) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../theme.dart';
@@ -16,95 +17,99 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: YTColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: Navigator.canPop(context)
-                ? Padding(
-                    padding: const EdgeInsets.only(left: 8.0, top: 8.0),
+    return BlocBuilder<ThemeCubit, EmberThemeOption>(
+      builder: (context, themeOption) {
+        return Scaffold(
+          backgroundColor: YTColors.background,
+          body: CustomScrollView(
+            physics: const ClampingScrollPhysics(),
+            slivers: [
+              SliverAppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: Navigator.canPop(context)
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 8.0, top: 8.0),
+                        child: CircleAvatar(
+                          backgroundColor: Colors.black45,
+                          child: const BackButton(color: Colors.white),
+                        ),
+                      )
+                    : null,
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0, top: 8.0),
                     child: CircleAvatar(
                       backgroundColor: Colors.black45,
-                      child: const BackButton(color: Colors.white),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.settings_outlined,
+                          color: Colors.white,
+                        ),
+                        tooltip: 'Settings',
+                        onPressed: () => showSettingsSheet(context),
+                      ),
                     ),
-                  )
-                : null,
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0, top: 8.0),
-                child: CircleAvatar(
-                  backgroundColor: Colors.black45,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.settings_outlined,
-                      color: Colors.white,
-                    ),
-                    tooltip: 'Settings',
-                    onPressed: () => showSettingsSheet(context),
+                  ),
+                ],
+                stretch: true,
+                expandedHeight: 280,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: _buildHeroSection(),
+                  stretchModes: const [StretchMode.zoomBackground],
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 16.0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Ember is a premium music streaming client designed to keep your listening simple, clean, and distraction-free.\n\nNo complicated setup. No unnecessary features. Just search for music, play what you want, and let Ember handle the rest.',
+                        style: TextStyle(
+                          color: YTColors.secondary,
+                          fontSize: 15,
+                          height: 1.6,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 48),
+
+                      // Features Grid
+                      _buildSectionTitle('Features'),
+                      const SizedBox(height: 20),
+                      _buildFeaturesGrid(),
+                      const SizedBox(height: 48),
+
+                      // Built to stay lightweight
+                      _buildLightweightCard(),
+                      const SizedBox(height: 20),
+
+                      // Open Source
+                      _buildOpenSourceCard(),
+                      const SizedBox(height: 48),
+
+                      // Credits
+                      _buildSectionTitle('Credits'),
+                      const SizedBox(height: 20),
+                      _buildCreditsSection(),
+
+                      const SizedBox(height: 80),
+                      _buildFooter(),
+                      const SizedBox(height: 48),
+                    ],
                   ),
                 ),
               ),
             ],
-            stretch: true,
-            expandedHeight: 280,
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildHeroSection(),
-              stretchModes: const [StretchMode.zoomBackground],
-            ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 16.0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Ember is a premium music streaming client designed to keep your listening simple, clean, and distraction-free.\n\nNo complicated setup. No unnecessary features. Just search for music, play what you want, and let Ember handle the rest.',
-                    style: TextStyle(
-                      color: YTColors.secondary,
-                      fontSize: 15,
-                      height: 1.6,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 48),
-
-                  // Features Grid
-                  _buildSectionTitle('Features'),
-                  const SizedBox(height: 20),
-                  _buildFeaturesGrid(),
-                  const SizedBox(height: 48),
-
-                  // Built to stay lightweight
-                  _buildLightweightCard(),
-                  const SizedBox(height: 20),
-
-                  // Open Source
-                  _buildOpenSourceCard(),
-                  const SizedBox(height: 48),
-
-                  // Credits
-                  _buildSectionTitle('Credits'),
-                  const SizedBox(height: 20),
-                  _buildCreditsSection(),
-
-                  const SizedBox(height: 80),
-                  _buildFooter(),
-                  const SizedBox(height: 48),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

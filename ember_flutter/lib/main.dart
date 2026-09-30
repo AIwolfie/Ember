@@ -27,7 +27,7 @@ void main() async {
     androidNotificationChannelId: 'com.example.ember.channel.audio',
     androidNotificationChannelName: 'Ember Music',
     androidNotificationOngoing: true,
-    androidStopForegroundOnPause: false,
+    androidStopForegroundOnPause: true,
     androidShowNotificationBadge: true,
     androidNotificationIcon: 'drawable/ic_music_notification',
   );
@@ -115,10 +115,12 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: YTColors.background,
-      extendBody: true,
-      body: BlocBuilder<AudioBloc, AudioState>(
+    return BlocBuilder<ThemeCubit, EmberThemeOption>(
+      builder: (context, themeOption) {
+        return Scaffold(
+          backgroundColor: YTColors.background,
+          extendBody: true,
+          body: BlocBuilder<AudioBloc, AudioState>(
         builder: (context, audioState) {
           final topColor = audioState.dominantColor ?? const Color(0xFF6B1B1B);
           return Stack(
@@ -145,7 +147,7 @@ class _MainLayoutState extends State<MainLayout> {
                   ),
                 ),
               NestedScrollView(
-                physics: const BouncingScrollPhysics(),
+                physics: const ClampingScrollPhysics(),
                 headerSliverBuilder:
                     (BuildContext context, bool innerBoxIsScrolled) {
                       return [
@@ -250,5 +252,6 @@ class _MainLayoutState extends State<MainLayout> {
         ],
       ),
     );
+  });
   }
 }

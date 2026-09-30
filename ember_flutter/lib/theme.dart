@@ -31,11 +31,11 @@ class EmberThemes {
     id: 'amber',
     name: 'Amber',
     description: 'Warm golden amber & deep roasted espresso',
-    primary: Color(0xFFFF9100),
-    accent: Color(0xFFFFA726),
-    background: Color(0xFF0D0A08),
-    surface: Color(0xFF1E1712),
-    surfaceLight: Color(0xFF2E221A),
+    primary: Color(0xFFFFB300),
+    accent: Color(0xFFFFCA28),
+    background: Color(0xFF000000),
+    surface: Color(0xFF121212),
+    surfaceLight: Color(0xFF1A1A1A),
   );
 
   static const emerald = EmberThemeOption(
@@ -44,9 +44,9 @@ class EmberThemes {
     description: 'Forest moss, midnight pine & radiant emerald glow',
     primary: Color(0xFF00E676),
     accent: Color(0xFF69F0AE),
-    background: Color(0xFF070E0A),
-    surface: Color(0xFF101C14),
-    surfaceLight: Color(0xFF1B2D20),
+    background: Color(0xFF000000),
+    surface: Color(0xFF121212),
+    surfaceLight: Color(0xFF1A1A1A),
   );
 
   static const amethyst = EmberThemeOption(
@@ -55,9 +55,9 @@ class EmberThemes {
     description: 'Velvet twilight & mystical violet luminescence',
     primary: Color(0xFFB388FF),
     accent: Color(0xFFD1C4E9),
-    background: Color(0xFF0D0A14),
-    surface: Color(0xFF1A1426),
-    surfaceLight: Color(0xFF2B203D),
+    background: Color(0xFF000000),
+    surface: Color(0xFF121212),
+    surfaceLight: Color(0xFF1A1A1A),
   );
 
   static const solar = EmberThemeOption(
@@ -66,9 +66,9 @@ class EmberThemes {
     description: 'Sun-baked terracotta, warm earth & solar fire',
     primary: Color(0xFFFF6D00),
     accent: Color(0xFFFFAB40),
-    background: Color(0xFF100905),
-    surface: Color(0xFF22150E),
-    surfaceLight: Color(0xFF332015),
+    background: Color(0xFF000000),
+    surface: Color(0xFF121212),
+    surfaceLight: Color(0xFF1A1A1A),
   );
 
   static const rose = EmberThemeOption(
@@ -77,9 +77,9 @@ class EmberThemes {
     description: 'Smoky plum, evening rouge & soft blush accents',
     primary: Color(0xFFFF4081),
     accent: Color(0xFFFF80AB),
-    background: Color(0xFF12070D),
-    surface: Color(0xFF22111A),
-    surfaceLight: Color(0xFF361B29),
+    background: Color(0xFF000000),
+    surface: Color(0xFF121212),
+    surfaceLight: Color(0xFF1A1A1A),
   );
 
   static const List<EmberThemeOption> all = [

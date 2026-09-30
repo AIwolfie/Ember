@@ -29,13 +29,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<StorageBloc, StorageState>(
-      builder: (context, storage) {
-        return Scaffold(
+    return BlocBuilder<ThemeCubit, EmberThemeOption>(
+      builder: (context, themeOption) {
+        return BlocBuilder<StorageBloc, StorageState>(
+          builder: (context, storage) {
+            return Scaffold(
           backgroundColor: YTColors.background,
           body: CustomScrollView(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: ClampingScrollPhysics(),
             ),
             slivers: [
               // Top Bar: Flame + Ember & Settings
@@ -91,40 +93,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ),
               ),
 
-              // Category Filter Chips: Playlists and Favorites ONLY
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        _buildFilterPill('Playlists', Icons.queue_music_rounded),
-                        const SizedBox(width: 10),
-                        _buildFilterPill(
-                          'Favorites',
-                          Icons.favorite_rounded,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildFilterPill(
-                          'Downloads',
-                          Icons.download_done_rounded,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
+              // Category Filter Chips Removed to show all sections clearly
               const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-              // Conditional view based on filter
-              if (_selectedFilter == 'Favorites')
-                ..._buildFavoritesOnlySlivers(context, storage)
-              else if (_selectedFilter == 'Downloads')
-                ..._buildDownloadsSlivers(context)
-              else
-                ..._buildCompositeLibrarySlivers(context, storage),
+              // 1. Favorites on Top
+              ..._buildFavoritesSection(context, storage),
+              
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              
+              // 2. Playlists
+              ..._buildPlaylistsSection(context, storage),
+              
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              
+              // 3. Downloads
+              ..._buildDownloadsSlivers(context),
 
               // Bottom padding for mini player
               const SliverToBoxAdapter(child: SizedBox(height: 140)),
@@ -132,7 +115,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         );
       },
-    );
+      );
+    });
   }
 
   // Filter Pill Button
@@ -182,11 +166,129 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Composite Library View: User Playlists + Real Favorites
-  List<Widget> _buildCompositeLibrarySlivers(
-    BuildContext context,
-    StorageState storage,
-  ) {
+  // Favorites Section (On Top)
+  List<Widget> _buildFavoritesSection(BuildContext context, StorageState storage) {
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                   Container(
+                     padding: const EdgeInsets.all(6),
+                     decoration: BoxDecoration(
+                       color: YTColors.primary.withValues(alpha: 0.1),
+                       shape: BoxShape.circle,
+                     ),
+                     child: Icon(
+                      Icons.favorite_rounded,
+                      color: YTColors.primary,
+                      size: 20,
+                                       ),
+                   ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Favorites',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PlaylistScreen(playlistName: 'Favorites'),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Row(
+                    children: [
+                      Text(
+                        'See All',
+                        style: TextStyle(
+                          color: YTColors.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(Icons.chevron_right_rounded, color: YTColors.primary, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      if (storage.favorites.isEmpty)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              decoration: BoxDecoration(
+                color: YTColors.surface.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.favorite_border_rounded, color: Colors.white38, size: 32),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'No favorites yet',
+                          style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Tap ♡ on any song to save it to your favorites.',
+                          style: TextStyle(color: YTColors.secondary, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        )
+      else
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 168,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              physics: const ClampingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              itemCount: storage.favorites.length,
+              itemBuilder: (context, index) {
+                return _buildFavoriteCard(context, storage.favorites[index], storage.favorites, index);
+              },
+            ),
+          ),
+        ),
+    ];
+  }
+
+  // Playlists Section
+  List<Widget> _buildPlaylistsSection(BuildContext context, StorageState storage) {
     final playlistNames = storage.playlists.keys.toList();
 
     return [
@@ -362,140 +464,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         ),
 
-      const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-      // 2. Favorites Section Header
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.favorite_rounded,
-                    color: YTColors.primary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Favorites',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                ],
-              ),
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          const PlaylistScreen(playlistName: 'Favorites'),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        'See All',
-                        style: TextStyle(
-                          color: YTColors.primary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: YTColors.primary,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-
-      // Real Favorites Horizontal Carousel or Empty State
-      if (storage.favorites.isEmpty)
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-              decoration: BoxDecoration(
-                color: YTColors.surface.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.favorite_border_rounded,
-                    color: Colors.white38,
-                    size: 32,
-                  ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'No favorites yet',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Tap ♡ on any song to save it to your favorites.',
-                          style: TextStyle(color: YTColors.secondary, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        )
-      else
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height: 168,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              itemCount: storage.favorites.length,
-              itemBuilder: (context, index) {
-                final track = storage.favorites[index];
-                return _buildFavoriteCard(context, track, storage.favorites, index);
-              },
-            ),
-          ),
-        ),
     ];
   }
 
-  // Playlist Item Widget
+  // Playlist Item Widget Formatted as a proper Tile
   Widget _buildPlaylistItem(
     BuildContext context,
     StorageState storage,
@@ -506,27 +478,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final count = tracks.length;
     final firstArt = tracks.isNotEmpty ? (tracks.first['artworkUrl'] ?? '') : '';
 
-    Widget leadingWidget;
-    if (firstArt.isNotEmpty) {
-      leadingWidget = ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: CachedNetworkImage(
-          imageUrl: firstArt,
-          width: 48,
-          height: 48,
-          fit: BoxFit.cover,
-          errorWidget: (_, __, ___) => _fallbackPlaylistArt(index),
-        ),
-      );
-    } else {
-      leadingWidget = _fallbackPlaylistArt(index);
-    }
-
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
+        child: ListTile(
           onTap: () {
             Navigator.push(
               context,
@@ -535,65 +491,53 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
             );
           },
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: YTColors.surface.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          leading: firstArt.isNotEmpty
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: firstArt,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => _fallbackPlaylistArt(index),
+                  ),
+                )
+              : _fallbackPlaylistArt(index),
+          title: Text(
+            playlistName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
             ),
-            child: Row(
-              children: [
-                leadingWidget,
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        playlistName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$count ${count == 1 ? 'song' : 'songs'}',
-                        style: const TextStyle(
-                          color: YTColors.secondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.white70,
-                    size: 24,
-                  ),
-                  onPressed: () {
-                    if (tracks.isNotEmpty) {
-                      context.read<AudioBloc>().add(
-                        AudioPlayQueue(tracks, startIndex: 0),
-                      );
-                    }
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.more_vert_rounded,
-                    color: Colors.white38,
-                    size: 20,
-                  ),
-                  onPressed: () => _showPlaylistMenu(context, playlistName),
-                ),
-              ],
+          ),
+          subtitle: Text(
+            '$count ${count == 1 ? 'song' : 'songs'}',
+            style: const TextStyle(
+              color: YTColors.secondary,
+              fontSize: 13,
             ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.play_arrow_rounded, color: Colors.white70),
+                onPressed: () {
+                  if (tracks.isNotEmpty) {
+                    context.read<AudioBloc>().add(
+                      AudioPlayQueue(tracks, startIndex: 0),
+                    );
+                  }
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.more_vert_rounded, color: Colors.white54),
+                onPressed: () => _showPlaylistMenu(context, playlistName),
+              ),
+            ],
           ),
         ),
       ),
