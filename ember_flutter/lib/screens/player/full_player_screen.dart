@@ -1,25 +1,24 @@
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:ember_flutter/blocs/audio/audio_bloc.dart';
+import 'package:ember_flutter/blocs/audio/audio_event.dart';
+import 'package:ember_flutter/blocs/audio/audio_state.dart';
+import 'package:ember_flutter/widgets/sleep_timer_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:just_audio/just_audio.dart';
 
-import '../blocs/audio/audio_bloc.dart';
-import '../blocs/audio/audio_event.dart';
-import '../blocs/audio/audio_state.dart';
-import '../blocs/download/download_bloc.dart';
-import '../blocs/storage/storage_bloc.dart';
-import '../blocs/storage/storage_event.dart';
-import '../blocs/storage/storage_state.dart';
-import '../services/python_service.dart';
-import '../services/sleep_timer_service.dart';
-import '../theme.dart';
-import '../utils/result.dart';
-import '../widgets/ember_app_bar.dart';
-import '../widgets/playback_speed_sheet.dart';
-import '../widgets/playlist_sheet.dart';
-import '../widgets/sleep_timer_sheet.dart';
+import '../../blocs/storage/storage_bloc.dart';
+import '../../blocs/storage/storage_event.dart';
+import '../../blocs/storage/storage_state.dart';
+import '../../services/python_service.dart';
+import '../../services/sleep_timer_service.dart';
+import '../../theme.dart';
+import '../../utils/result.dart';
+import '../../widgets/playback_speed_sheet.dart';
+import '../../widgets/playlist_sheet.dart';
+import '../download/bloc/download_bloc.dart';
 
 class FullPlayerScreen extends StatefulWidget {
   const FullPlayerScreen({super.key});
@@ -119,11 +118,11 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
         const SizedBox(height: 14),
 
         // Pill Action Row (Like, Save, Download)
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              BlocBuilder<StorageBloc, StorageState>(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Expanded(
+              child: BlocBuilder<StorageBloc, StorageState>(
                 builder: (context, storageState) {
                   final isFav = storageState.isFavorite(track['videoId'] ?? '');
                   return _buildPillButton(
@@ -136,12 +135,18 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                   );
                 },
               ),
-              _buildPillButton(
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildPillButton(
                 icon: Icons.playlist_add,
                 label: 'Save',
                 onTap: () => showPlaylistSheet(context, track: track),
               ),
-              BlocBuilder<DownloadBloc, DownloadState>(
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BlocBuilder<DownloadBloc, DownloadState>(
                 builder: (context, downloadState) {
                   final videoId = track['videoId'] ?? '';
                   final isDownloaded = downloadState.isDownloaded(videoId);
@@ -149,7 +154,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
 
                   return _buildPillButton(
                     icon: isDownloaded ? Icons.download_done_rounded : (isDownloading ? Icons.downloading_rounded : Icons.download_rounded),
-                    label: isDownloaded ? 'Downloaded' : (isDownloading ? 'Downloading...' : 'Download'),
+                    label: isDownloaded ? 'Downloaded' : (isDownloading ? 'Wait..' : 'Download'),
                     color: isDownloaded ? Colors.greenAccent : null,
                     onTap: () {
                       if (isDownloaded) {
@@ -175,8 +180,8 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                   );
                 },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
 
         const SizedBox(height: 14),
@@ -654,30 +659,32 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
     required VoidCallback onTap,
     Color? color,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: ElevatedButton.icon(
-        icon: Icon(icon, color: color ?? Colors.white, size: 20),
-        label: Text(
+    return ElevatedButton.icon(
+      icon: Icon(icon, color: color ?? Colors.white, size: 18),
+      label: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
           label,
           style: TextStyle(
             color: color ?? Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 13,
           ),
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white.withValues(alpha: 0.12),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        ),
-        onPressed: onTap,
       ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white.withValues(alpha: 0.12),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      ),
+      onPressed: onTap,
     );
   }
+
   Widget _buildInlineLyricsView(Map<String, String> track, AudioBloc audioBloc) {
     return Container(
       width: double.infinity,
@@ -769,7 +776,7 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                             }
                           }
                         }
-                        
+
                         if (activeIndex != -1 && activeIndex != _lastActiveIndex) {
                           _lastActiveIndex = activeIndex;
                           if (_sheetController.isAttached && _sheetController.size > 0.5) {
@@ -793,10 +800,10 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                             final idx = entry.key;
                             final item = entry.value;
                             final key = _lyricKeys.putIfAbsent(idx, () => GlobalKey());
-                            
+
                             // If synced, use activeIndex. If unsynced, show all lyrics uniformly
                             final isActive = hasTimestamps ? (idx == activeIndex) : true;
-                            
+
                             final text = item['text'] as String;
                             if (text.isEmpty) {
                               return SizedBox(key: key, height: 16);

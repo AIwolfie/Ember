@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../blocs/storage/storage_bloc.dart';
-import '../blocs/storage/storage_event.dart';
-import '../blocs/storage/storage_state.dart';
-import '../theme.dart';
+import 'package:ember_flutter/blocs/storage/storage_bloc.dart';
+import 'package:ember_flutter/blocs/storage/storage_event.dart';
+import 'package:ember_flutter/blocs/storage/storage_state.dart';
+import 'package:ember_flutter/theme.dart';
 
 void showPlaylistSheet(BuildContext context, {Map<String, String>? track}) {
   final storageBloc = context.read<StorageBloc>();

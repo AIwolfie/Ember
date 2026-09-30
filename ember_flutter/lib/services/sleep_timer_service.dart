@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../blocs/audio/audio_bloc.dart';
+import 'package:ember_flutter/blocs/audio/audio_bloc.dart';
 
 class SleepTimerService {
   SleepTimerService._();

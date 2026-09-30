@@ -1,12 +1,12 @@
+import 'package:ember_flutter/widgets/shared_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../blocs/home/home_bloc.dart';
-import '../blocs/home/home_event.dart';
-import '../blocs/home/home_state.dart';
-import '../theme.dart';
-import '../widgets/shared_ui.dart';
+import '../../theme.dart';
+import 'bloc/home_bloc.dart';
+import 'bloc/home_event.dart';
+import 'bloc/home_state.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -126,10 +126,11 @@ class HomeScreen extends StatelessWidget {
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: ClampingScrollPhysics(),
                   ),
-                  padding: const EdgeInsets.only(bottom: 120, top: 4),
+                  padding: const EdgeInsets.only(bottom: 120, top: 0),
                   children: [
                     _buildMoodChips(context, state.activeMood),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 4),
+                    if (state.isColdStart && state.activeMood == null) _buildWelcomeBanner(),
                     ...sections.map((section) {
                       final title = section['title'] as String;
                       final rawTracks = section['tracks'] as List<dynamic>;
@@ -145,8 +146,12 @@ class HomeScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SharedUI.buildSectionTitle(title),
-                          // If there are many items, use our new premium grid, else horizontal list
-                          if (items.length >= 8)
+                          // Only use premium grid for Quick Picks, everything else uses horizontal carousel
+                          if (title.toLowerCase().contains('quick picks'))
+                            SharedUI.buildQuickPicksGrid(context, items)
+                          else if (title.toLowerCase().contains('hits') ||
+                              title.toLowerCase().contains('mix') ||
+                              title.toLowerCase().contains('picks'))
                             SharedUI.buildQuickPicksGrid(context, items)
                           else
                             SharedUI.buildHorizontalList(
@@ -171,7 +176,7 @@ class HomeScreen extends StatelessWidget {
   Widget _buildMoodChips(BuildContext context, String? activeMood) {
     final chips = ['Energize', 'Workout', 'Relax', 'Commute', 'Focus', 'Party'];
     return SizedBox(
-      height: 48,
+      height: 36,
       child: ListView.builder(
         physics: const ClampingScrollPhysics(),
         scrollDirection: Axis.horizontal,
@@ -193,17 +198,17 @@ class HomeScreen extends StatelessWidget {
                         );
                   }
                 },
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(8),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeOut,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
+                    horizontal: 16,
                     vertical: 0,
                   ),
                   decoration: BoxDecoration(
                     color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isSelected ? Colors.white : Colors.white10,
                     ),
@@ -214,7 +219,7 @@ class HomeScreen extends StatelessWidget {
                     style: TextStyle(
                       color: isSelected ? Colors.black : Colors.white,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      fontSize: 14,
+                      fontSize: 13,
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -223,6 +228,41 @@ class HomeScreen extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildWelcomeBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: YTColors.surfaceLight.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.auto_awesome, color: YTColors.primary, size: 28),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Welcome to Ember! \uD83D\uDD25',
+                  style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Search and play a few songs you love to help us build a personalized feed just for you.',
+                  style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

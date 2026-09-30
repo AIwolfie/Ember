@@ -2,17 +2,18 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_debounce/easy_debounce.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shimmer/shimmer.dart';
 
-import '../blocs/storage/storage_bloc.dart';
-import '../blocs/storage/storage_event.dart';
-import '../blocs/storage/storage_state.dart';
-import '../services/python_service.dart';
-import '../theme.dart';
-import '../utils/result.dart';
-import '../utils/search_algorithm.dart';
-import '../widgets/shared_ui.dart';
-import 'artist_screen.dart';
-import 'playlist_screen.dart';
+import 'package:ember_flutter/blocs/storage/storage_bloc.dart';
+import 'package:ember_flutter/blocs/storage/storage_event.dart';
+import 'package:ember_flutter/blocs/storage/storage_state.dart';
+import 'package:ember_flutter/services/python_service.dart';
+import 'package:ember_flutter/theme.dart';
+import 'package:ember_flutter/utils/result.dart';
+import 'package:ember_flutter/utils/search_algorithm.dart';
+import 'package:ember_flutter/widgets/shared_ui.dart';
+import 'package:ember_flutter/screens/artist/artist_screen.dart';
+import 'package:ember_flutter/screens/playlist/playlist_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -31,7 +32,6 @@ class _SearchScreenState extends State<SearchScreen> {
   final List<String> _filters = [
     'All',
     'Songs',
-    'Albums',
     'Artists',
     'Playlists',
   ];
@@ -140,104 +140,100 @@ class _SearchScreenState extends State<SearchScreen> {
 
   PreferredSizeWidget _buildModernAppBar() {
     return AppBar(
-      titleSpacing: 16,
-      toolbarHeight: 64,
-      backgroundColor: YTColors.background,
-      elevation: 0,
-      automaticallyImplyLeading: false, // No leading back button needed in main search tab
-      title: Padding(
-        padding: const EdgeInsets.only(right: 16.0),
-        child: Hero(
-          tag: 'search_bar',
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white10),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      autofocus: true,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textInputAction: TextInputAction.search,
-                      decoration: const InputDecoration(
-                        hintText: 'Songs, albums, artists...',
-                        hintStyle: TextStyle(
-                          color: Colors.white54,
+        titleSpacing: 16,
+        toolbarHeight: 64,
+        backgroundColor: YTColors.background,
+        elevation: 0,
+        automaticallyImplyLeading: false, // No leading back button needed in main search tab
+        title: Padding(
+          padding: const EdgeInsets.only(right: 16.0),
+          child: Hero(
+            tag: 'search_bar',
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: true,
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 16,
+                          fontWeight: FontWeight.w500,
                         ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.only(left: 20, bottom: 4),
-                      ),
-                      onSubmitted: _performSearch,
-                      onChanged: _onSearchChanged,
-                    ),
-                  ),
-                  ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: _searchController,
-                    builder: (context, value, child) {
-                      if (value.text.isEmpty) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: const Icon(
-                            Icons.search,
+                        textInputAction: TextInputAction.search,
+                        decoration: const InputDecoration(
+                          hintText: 'Songs, albums, artists...',
+                          hintStyle: TextStyle(
                             color: Colors.white54,
-                            size: 20,
+                            fontSize: 16,
                           ),
-                        );
-                      }
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.clear,
-                              color: Colors.white70,
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.only(left: 20, bottom: 4),
+                        ),
+                        onSubmitted: _performSearch,
+                        onChanged: _onSearchChanged,
+                      ),
+                    ),
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _searchController,
+                      builder: (context, value, child) {
+                        if (value.text.isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: const Icon(
+                              Icons.search,
+                              color: Colors.white54,
                               size: 20,
                             ),
-                            onPressed: () {
-                              _searchController.clear();
-                              _onSearchChanged('');
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+                          );
+                        }
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.clear,
+                                color: Colors.white70,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                _searchController.clear();
+                                _onSearchChanged('');
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(56),
-        child: Container(
-          decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: Colors.white10)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: _filters.map((filter) {
-                  final isSelected = _currentFilter == filter;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: InkWell(
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colors.white10)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: _filters.map((filter) {
+                    final isSelected = _currentFilter == filter;
+                    return InkWell(
                       onTap: () {
                         if (_currentFilter != filter) {
                           setState(() => _currentFilter = filter);
@@ -248,18 +244,18 @@ class _SearchScreenState extends State<SearchScreen> {
                           );
                         }
                       },
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(8),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
+                          horizontal: 16,
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: isSelected ? Colors.white : Colors.transparent,
-                          borderRadius: BorderRadius.circular(24),
+                          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: isSelected ? Colors.white : Colors.white24,
+                            color: isSelected ? Colors.white : Colors.white10,
                           ),
                         ),
                         child: Text(
@@ -272,20 +268,78 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
           ),
-        ),
+        ));
+  }
+
+  Widget _buildSearchSkeleton() {
+    return Shimmer.fromColors(
+      baseColor: Colors.white.withValues(alpha: 0.04),
+      highlightColor: Colors.white.withValues(alpha: 0.12),
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 120, top: 0),
+        itemCount: 8,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                  child: Container(height: 28, width: 140, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Container(
+                    height: 120,
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
+                  child: Container(height: 24, width: 120, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                ),
+              ],
+            );
+          }
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(width: 180, height: 16, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                      const SizedBox(height: 8),
+                      Container(width: 100, height: 14, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4))),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildMainContent() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return _buildSearchSkeleton();
     }
 
     if (!_hasSearched) {
@@ -457,7 +511,7 @@ class _TopResultCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           height: 1.2,
                         ),
@@ -701,6 +755,7 @@ class _HistorySliver extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.08),
+                        border: Border.all(color: Colors.white10),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(

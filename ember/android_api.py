@@ -23,6 +23,14 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("android_api")
 
+try:
+    from .recommendation_engine import analyze_history
+except ImportError:
+    try:
+        from recommendation_engine import analyze_history
+    except ImportError:
+        def analyze_history(h): return "{}"
+
 _catalog: Optional[CatalogSource] = None
 _stream_resolver: Optional[StreamResolver] = None
 
@@ -78,6 +86,17 @@ def similar(seed_id: str) -> List[Dict[str, str]]:
         return [_song_to_dict(s) for s in results if s and s.video_id]
     except Exception as exc:
         log.error("similar failed for %r: %s", seed_id, exc)
+        return []
+
+
+def top_artists() -> List[Dict[str, str]]:
+    """Fetch top artists to help with cold-start onboarding."""
+    try:
+        cat = _get_catalog()
+        results = cat.top_artists()
+        return [_song_to_dict(s) for s in results if s and s.title]
+    except Exception as exc:
+        log.error("top_artists failed: %s", exc)
         return []
 
 
@@ -198,3 +217,14 @@ def import_playlist(identifier: str) -> str:
     except Exception as exc:
         log.error("import_playlist failed for %r: %s", identifier, exc)
         return json.dumps({"title": "Failed to import", "tracks": []})
+
+def build_affinity_graph(history_json: str) -> str:
+    """Analyze local play history to generate artist affinity graph."""
+    if not history_json:
+        return "{}"
+    try:
+        return analyze_history(history_json)
+    except Exception as exc:
+        log.error("build_affinity_graph failed: %s", exc)
+        return "{}"
+

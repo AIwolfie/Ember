@@ -1,13 +1,13 @@
+import 'package:ember_flutter/blocs/storage/storage_bloc.dart';
+import 'package:ember_flutter/blocs/storage/storage_event.dart';
+import 'package:ember_flutter/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../blocs/storage/storage_bloc.dart';
-import '../blocs/storage/storage_event.dart';
-import '../screens/about_screen.dart';
-import '../services/update_service.dart';
-import '../theme.dart';
+import '../../services/update_service.dart';
+import '../about/about_screen.dart';
 
 void showSettingsSheet(BuildContext context) {
   Navigator.push(
@@ -47,32 +47,24 @@ class SettingsScreen extends StatelessWidget {
               bottom: MediaQuery.of(context).padding.bottom + 32,
             ),
             children: [
-              const Divider(color: Colors.white12, height: 1),
               const SizedBox(height: 16),
-
               // Theme selector header
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 8,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.palette_rounded,
-                          color: YTColors.primary,
-                          size: 20,
-                        ),
+                        Icon(Icons.palette_rounded, color: activeTheme.primary, size: 20),
                         const SizedBox(width: 8),
                         const Text(
                           'Theme Palette',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
                           ),
                         ),
                       ],
@@ -80,247 +72,193 @@ class SettingsScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     const Text(
                       'Customize the visual ambience across your player',
-                      style: TextStyle(
-                        color: YTColors.secondary,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: YTColors.secondary, fontSize: 13),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 8),
-
-              // 5 Handcrafted Theme Cards
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: EmberThemes.all.map((theme) {
+              // Horizontal Ribbon for Themes
+              SizedBox(
+                height: 120, // Enough height for card + padding
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: EmberThemes.all.length,
+                  itemBuilder: (context, index) {
+                    final theme = EmberThemes.all[index];
                     final isSelected = theme.id == activeTheme.id;
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            context.read<ThemeCubit>().setTheme(theme);
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? theme.primary.withValues(alpha: 0.14)
-                                  : YTColors.surfaceLight.withValues(
-                                      alpha: 0.4,
-                                    ),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected
-                                    ? theme.primary
-                                    : Colors.white.withValues(
-                                        alpha: 0.08,
-                                      ),
-                                width: isSelected ? 1.8 : 1.0,
-                              ),
+                      padding: const EdgeInsets.only(right: 12),
+                      child: InkWell(
+                        onTap: () => context.read<ThemeCubit>().setTheme(theme),
+                        borderRadius: BorderRadius.circular(20),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 140,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isSelected ? theme.primary.withValues(alpha: 0.14) : YTColors.surfaceLight.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected ? theme.primary : Colors.white.withValues(alpha: 0.08),
+                              width: isSelected ? 1.5 : 1.0,
                             ),
-                            child: Row(
-                              children: [
-                                // Theme Swatch circle
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        theme.primary,
-                                        theme.accent,
-                                        theme.background,
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: theme.primary.withValues(
-                                          alpha: 0.35,
-                                        ),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        theme.name,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        theme.description,
-                                        style: const TextStyle(
-                                          color: YTColors.secondary,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (isSelected)
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
                                   Container(
-                                    padding: const EdgeInsets.all(4),
+                                    width: 32,
+                                    height: 32,
                                     decoration: BoxDecoration(
-                                      color: theme.primary,
                                       shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.check_rounded,
-                                      color: Colors.black,
-                                      size: 16,
+                                      gradient: LinearGradient(
+                                        colors: [theme.primary, theme.accent, theme.background],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      boxShadow: [
+                                        if (isSelected)
+                                          BoxShadow(color: theme.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2)),
+                                      ],
                                     ),
                                   ),
-                              ],
-                            ),
+                                  if (isSelected) Icon(Icons.check_circle_rounded, color: theme.primary, size: 20),
+                                ],
+                              ),
+                              const Spacer(),
+                              Text(
+                                theme.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                theme.description,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: YTColors.secondary, fontSize: 11),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     );
-                  }).toList(),
+                  },
                 ),
               ),
+
+              const SizedBox(height: 32),
 
               const Divider(color: Colors.white12, height: 32),
 
               // Storage and Data Actions
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 8,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.storage_rounded,
-                      color: YTColors.primary,
-                      size: 20,
-                    ),
+                    Icon(Icons.storage_rounded, color: activeTheme.primary, size: 20),
                     const SizedBox(width: 8),
                     const Text(
                       'Data & History',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
                       ),
                     ),
                   ],
                 ),
               ),
 
-              ListTile(
-                leading: const Icon(
-                  Icons.clear_all_rounded,
-                  color: Colors.white70,
-                ),
-                title: const Text(
-                  'Clear Search History',
-                  style: TextStyle(color: Colors.white),
-                ),
-                subtitle: const Text(
-                  'Remove all stored recent search queries',
-                  style: TextStyle(
-                    color: YTColors.secondary,
-                    fontSize: 12,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: YTColors.surfaceLight.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), shape: BoxShape.circle),
+                          child: const Icon(Icons.clear_all_rounded, color: Colors.white70, size: 20),
+                        ),
+                        title: const Text('Clear Search History', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                        subtitle: const Text('Remove all stored recent search queries', style: TextStyle(color: YTColors.secondary, fontSize: 12)),
+                        onTap: () {
+                          context.read<StorageBloc>().add(StorageClearSearch());
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('Search history cleared'), backgroundColor: activeTheme.primary));
+                        },
+                      ),
+                      Divider(color: Colors.white.withValues(alpha: 0.05), height: 1, indent: 64),
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), shape: BoxShape.circle),
+                          child: const Icon(Icons.history_toggle_off_rounded, color: Colors.white70, size: 20),
+                        ),
+                        title: const Text('Clear Playback History', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                        subtitle: const Text('Remove recently played tracks', style: TextStyle(color: YTColors.secondary, fontSize: 12)),
+                        onTap: () {
+                          context.read<StorageBloc>().add(StorageClearPlayHistory());
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('Playback history cleared'), backgroundColor: activeTheme.primary));
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                onTap: () {
-                  context.read<StorageBloc>().add(StorageClearSearch());
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Search history cleared'),
-                    ),
-                  );
-                },
-              ),
-
-              ListTile(
-                leading: const Icon(
-                  Icons.history_toggle_off_rounded,
-                  color: Colors.white70,
-                ),
-                title: const Text(
-                  'Clear Playback History',
-                  style: TextStyle(color: Colors.white),
-                ),
-                subtitle: const Text(
-                  'Remove recently played tracks',
-                  style: TextStyle(
-                    color: YTColors.secondary,
-                    fontSize: 12,
-                  ),
-                ),
-                onTap: () {
-                  context.read<StorageBloc>().add(
-                        StorageClearPlayHistory(),
-                      );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Playback history cleared'),
-                    ),
-                  );
-                },
               ),
 
               const Divider(color: Colors.white12, height: 32),
 
               // Updates (Shorebird OTA)
-              const _UpdateSection(),
-
-              const Divider(color: Colors.white12, height: 32),
+              const SizedBox(height: 16),
+              // Updates (Shorebird OTA)
+              _UpdateSection(activePrimary: activeTheme.primary),
 
               // About Link
-              ListTile(
-                leading: const Icon(
-                  Icons.info_outline_rounded,
-                  color: Colors.white70,
-                ),
-                title: const Text(
-                  'About Ember',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: YTColors.surfaceLight.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                   ),
-                ),
-                subtitle: const Text(
-                  'v1.0.0 • Mayank Malaviya & Kenil Ribadiya',
-                  style: TextStyle(
-                    color: YTColors.secondary,
-                    fontSize: 12,
-                  ),
-                ),
-                trailing: const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.white38,
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AboutScreen(),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: activeTheme.primary.withValues(alpha: 0.15), shape: BoxShape.circle),
+                      child: Icon(Icons.info_outline_rounded, color: activeTheme.primary, size: 20),
                     ),
-                  );
-                },
+                    title: const Text('About Ember', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    subtitle: const Text('v1.0.0 • Mayank & Kenil', style: TextStyle(color: YTColors.secondary, fontSize: 12)),
+                    trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()));
+                    },
+                  ),
+                ),
               ),
 
               const SizedBox(height: 16),
@@ -333,7 +271,8 @@ class SettingsScreen extends StatelessWidget {
 }
 
 class _UpdateSection extends StatefulWidget {
-  const _UpdateSection();
+  final Color activePrimary;
+  const _UpdateSection({required this.activePrimary});
 
   @override
   State<_UpdateSection> createState() => _UpdateSectionState();
@@ -426,7 +365,7 @@ class _UpdateSectionState extends State<_UpdateSection> {
           color: YTColors.surfaceLight.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isOutdated ? YTColors.primary : Colors.white.withValues(alpha: 0.06),
+            color: isOutdated ? widget.activePrimary : Colors.white.withValues(alpha: 0.06),
             width: isOutdated ? 1.5 : 1.0,
           ),
         ),
@@ -437,7 +376,7 @@ class _UpdateSectionState extends State<_UpdateSection> {
               children: [
                 Icon(
                   isOutdated ? Icons.system_update_rounded : Icons.cloud_done_rounded,
-                  color: isOutdated ? YTColors.primary : Colors.white70,
+                  color: isOutdated ? widget.activePrimary : Colors.white70,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -475,7 +414,7 @@ class _UpdateSectionState extends State<_UpdateSection> {
                 child: ElevatedButton.icon(
                   onPressed: _downloading ? null : _applyUpdate,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: YTColors.primary,
+                    backgroundColor: widget.activePrimary,
                     foregroundColor: Colors.black,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

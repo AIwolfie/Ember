@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'services/database_service.dart';
+import 'package:ember_flutter/services/database_service.dart';
 
 class EmberThemeOption {
   final String id;

@@ -113,6 +113,17 @@ class MainActivity: FlutterActivity() {
                         }
                     }
                 }
+                "build_affinity_graph" -> {
+                    val historyJson = call.argument<String>("history_json")
+                    executor.execute {
+                        try {
+                            val res = module.callAttr("build_affinity_graph", historyJson)?.toString()
+                            runOnUiThread { result.success(res) }
+                        } catch (e: Exception) {
+                            runOnUiThread { result.error("PYTHON_ERROR", e.message, null) }
+                        }
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

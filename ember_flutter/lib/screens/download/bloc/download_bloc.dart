@@ -4,9 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../services/database_service.dart';
-import '../../services/python_service.dart';
-import '../../utils/result.dart';
+import 'package:ember_flutter/services/database_service.dart';
+import 'package:ember_flutter/services/python_service.dart';
+import 'package:ember_flutter/utils/result.dart';
 
 // Events
 abstract class DownloadEvent {}

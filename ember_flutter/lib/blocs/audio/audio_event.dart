@@ -23,6 +23,8 @@ class AudioResume extends AudioEvent {}
 
 class AudioStop extends AudioEvent {}
 
+class AudioClear extends AudioEvent {}
+
 class AudioSeekToNext extends AudioEvent {}
 
 class AudioSeekToPrevious extends AudioEvent {}
@@ -73,5 +75,13 @@ class AudioAddToQueue extends AudioEvent {
   const AudioAddToQueue(this.track);
   @override
   List<Object?> get props => [track];
+}
+
+class AudioSetResumeState extends AudioEvent {
+  final Map<String, String> track;
+  final int positionMs;
+  const AudioSetResumeState(this.track, this.positionMs);
+  @override
+  List<Object?> get props => [track, positionMs];
 }
 

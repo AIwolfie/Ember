@@ -12,10 +12,11 @@ class HomeLoading extends HomeState {}
 class HomeLoaded extends HomeState {
   final List<Map<String, dynamic>> sections;
   final String? activeMood;
-  const HomeLoaded(this.sections, {this.activeMood});
+  final bool isColdStart;
+  const HomeLoaded(this.sections, {this.activeMood, this.isColdStart = false});
 
   @override
-  List<Object?> get props => [sections, activeMood];
+  List<Object?> get props => [sections, activeMood, isColdStart];
 }
 
 class HomeError extends HomeState {

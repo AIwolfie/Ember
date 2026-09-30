@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../theme.dart';
-import '../widgets/settings_sheet.dart';
+import 'package:ember_flutter/theme.dart';
+import 'package:ember_flutter/screens/settings/settings_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -55,15 +56,17 @@ class AboutScreen extends StatelessWidget {
                 stretch: true,
                 expandedHeight: 280,
                 flexibleSpace: FlexibleSpaceBar(
-                  background: _buildHeroSection(),
+                  background: _buildHeroSection(themeOption.primary),
                   stretchModes: const [StretchMode.zoomBackground],
                 ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 16.0,
+                  padding: EdgeInsets.only(
+                    left: 24.0,
+                    right: 24.0,
+                    top: 16.0,
+                    bottom: MediaQuery.of(context).padding.bottom + 72.0,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,30 +81,30 @@ class AboutScreen extends StatelessWidget {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 32),
 
                       // Features Grid
                       _buildSectionTitle('Features'),
-                      const SizedBox(height: 20),
-                      _buildFeaturesGrid(),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 16),
+                      _buildFeaturesGrid(themeOption.primary),
+                      const SizedBox(height: 24),
 
                       // Built to stay lightweight
-                      _buildLightweightCard(),
-                      const SizedBox(height: 20),
+                      _buildLightweightCard(themeOption.primary),
+                      const SizedBox(height: 16),
 
                       // Open Source
-                      _buildOpenSourceCard(),
-                      const SizedBox(height: 48),
+                      _buildOpenSourceCard(themeOption.primary),
+                      const SizedBox(height: 32),
 
                       // Credits
                       _buildSectionTitle('Credits'),
-                      const SizedBox(height: 20),
-                      _buildCreditsSection(),
+                      const SizedBox(height: 16),
+                      _buildCreditsSection(themeOption.primary),
 
-                      const SizedBox(height: 80),
+                      const SizedBox(height: 40),
                       _buildFooter(),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -113,7 +116,7 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeroSection() {
+  Widget _buildHeroSection(Color activePrimary) {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -128,7 +131,7 @@ class AboutScreen extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.orangeAccent.withValues(alpha: 0.10),
+                  color: activePrimary.withValues(alpha: 0.15),
                   blurRadius: 100,
                   spreadRadius: 80,
                 ),
@@ -158,9 +161,9 @@ class AboutScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.whatshot,
-                color: Colors.orangeAccent,
+                color: activePrimary,
                 size: 52,
               ),
             ),
@@ -175,22 +178,28 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-              ),
-              child: const Text(
-                'v1.0.0',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
+            FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                final version = snapshot.hasData ? "v${snapshot.data!.version}" : "v1.0.1";
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                  ),
+                  child: Text(
+                    version,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                );
+              }
             ),
           ],
         ),
@@ -198,23 +207,23 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeaturesGrid() {
+  Widget _buildFeaturesGrid(Color activePrimary) {
     return Wrap(
       runSpacing: 12,
       spacing: 12,
       children: [
-        _buildFeatureChip(Icons.search_rounded, 'Search & stream'),
-        _buildFeatureChip(Icons.favorite_rounded, 'Save tracks'),
-        _buildFeatureChip(Icons.history_rounded, 'Listening history'),
-        _buildFeatureChip(Icons.lyrics_rounded, 'Synchronized lyrics'),
-        _buildFeatureChip(Icons.bolt_rounded, 'Lightweight & fast'),
-        _buildFeatureChip(Icons.no_accounts_rounded, 'No sign-in required'),
-        _buildFeatureChip(Icons.block_rounded, 'Ad-free experience'),
+        _buildFeatureChip(Icons.search_rounded, 'Search & stream', activePrimary),
+        _buildFeatureChip(Icons.favorite_rounded, 'Save tracks', activePrimary),
+        _buildFeatureChip(Icons.history_rounded, 'Listening history', activePrimary),
+        _buildFeatureChip(Icons.lyrics_rounded, 'Synchronized lyrics', activePrimary),
+        _buildFeatureChip(Icons.bolt_rounded, 'Lightweight & fast', activePrimary),
+        _buildFeatureChip(Icons.no_accounts_rounded, 'No sign-in required', activePrimary),
+        _buildFeatureChip(Icons.block_rounded, 'Ad-free experience', activePrimary),
       ],
     );
   }
 
-  Widget _buildFeatureChip(IconData icon, String label) {
+  Widget _buildFeatureChip(IconData icon, String label, Color activePrimary) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -225,7 +234,7 @@ class AboutScreen extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.indigoAccent.shade100, size: 20),
+          Icon(icon, color: activePrimary, size: 20),
           const SizedBox(width: 8),
           Text(
             label,
@@ -240,45 +249,45 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLightweightCard() {
+  Widget _buildLightweightCard(Color activePrimary) {
     return _buildCard(
       icon: Icons.eco_rounded,
       title: 'Minimal by Design',
       content: 'Ember avoids unnecessary background processes, bloated interfaces, and features that get in the way of listening.',
-      color: Colors.greenAccent,
+      color: activePrimary,
     );
   }
 
-  Widget _buildOpenSourceCard() {
+  Widget _buildOpenSourceCard(Color activePrimary) {
     return _buildCard(
       icon: Icons.code_rounded,
       title: 'Open Source',
       content: 'Built with the goal of keeping music playback simple, highly accessible, and totally transparent.',
-      color: Colors.blueAccent,
+      color: activePrimary,
       action: InkWell(
         onTap: () => _launchUrl('https://github.com/KenilPatel0/Ember'),
         borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.blueAccent.withValues(alpha: 0.15),
+            color: activePrimary.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Explore Github Repository',
                 style: TextStyle(
-                  color: Colors.blueAccent,
+                  color: activePrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(width: 6),
+              const SizedBox(width: 6),
               Icon(
                 Icons.arrow_forward_ios_rounded,
-                color: Colors.blueAccent,
+                color: activePrimary,
                 size: 12,
               ),
             ],
@@ -342,7 +351,7 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCreditsSection() {
+  Widget _buildCreditsSection(Color activePrimary) {
     return Column(
       children: [
         _buildDeveloperRow(
@@ -351,6 +360,7 @@ class AboutScreen extends StatelessWidget {
           website: 'aiwolfie.online',
           url: 'https://aiwolfie.online',
           icon: Icons.computer_rounded,
+          activePrimary: activePrimary,
         ),
         const SizedBox(height: 16),
         _buildDeveloperRow(
@@ -359,6 +369,7 @@ class AboutScreen extends StatelessWidget {
           website: 'kenilribadiya.in',
           url: 'https://kenilribadiya.in',
           icon: Icons.smartphone_rounded,
+          activePrimary: activePrimary,
         ),
       ],
     );
@@ -370,6 +381,7 @@ class AboutScreen extends StatelessWidget {
     required String website,
     required String url,
     required IconData icon,
+    required Color activePrimary,
   }) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -386,7 +398,7 @@ class AboutScreen extends StatelessWidget {
               color: YTColors.surfaceLight,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: Colors.orangeAccent.shade100, size: 24),
+            child: Icon(icon, color: activePrimary, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -443,7 +455,7 @@ class AboutScreen extends StatelessWidget {
   Widget _buildFooter() {
     return Column(
       children: [
-        const Icon(Icons.favorite_rounded, color: Colors.white12, size: 32),
+        const Icon(Icons.favorite_rounded, color: Colors.redAccent, size: 32),
         const SizedBox(height: 16),
         const Text(
           'Crafted for late nights, cold tea, and warm code.\nEnjoy the sound.',

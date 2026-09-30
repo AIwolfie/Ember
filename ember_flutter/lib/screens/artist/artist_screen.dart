@@ -2,11 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../services/python_service.dart';
-import '../theme.dart';
-import '../utils/result.dart';
-import '../widgets/shared_ui.dart';
-import 'playlist_screen.dart';
+import 'package:ember_flutter/services/python_service.dart';
+import 'package:ember_flutter/theme.dart';
+import 'package:ember_flutter/utils/result.dart';
+import 'package:ember_flutter/widgets/shared_ui.dart';
+import 'package:ember_flutter/screens/playlist/playlist_screen.dart';
 
 class ArtistScreen extends StatefulWidget {
   final Map<String, String> artistInfo;

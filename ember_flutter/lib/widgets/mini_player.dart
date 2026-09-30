@@ -1,18 +1,18 @@
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:ember_flutter/theme.dart';
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:just_audio/just_audio.dart';
 
-import '../screens/full_player_screen.dart';
 import '../blocs/audio/audio_bloc.dart';
 import '../blocs/audio/audio_event.dart';
 import '../blocs/audio/audio_state.dart';
 import '../blocs/storage/storage_bloc.dart';
 import '../blocs/storage/storage_event.dart';
 import '../blocs/storage/storage_state.dart';
-import '../theme.dart';
+import '../screens/player/full_player_screen.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -41,7 +41,7 @@ class MiniPlayer extends StatelessWidget {
                 _openFullPlayer(context);
               } else if (details.primaryVelocity! > 300) {
                 // Swipe down to dismiss
-                audioBloc.add(AudioStop());
+                audioBloc.add(AudioClear());
               }
             }
           },
@@ -50,9 +50,7 @@ class MiniPlayer extends StatelessWidget {
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
               child: Container(
-                color:
-                    state.dominantColor?.withValues(alpha: 0.75) ??
-                    YTColors.surface.withValues(alpha: 0.85),
+                color: state.dominantColor?.withValues(alpha: 0.75) ?? YTColors.surface.withValues(alpha: 0.85),
                 height: 64,
                 child: Dismissible(
                   key: ValueKey(
@@ -114,12 +112,19 @@ class MiniPlayer extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    track['artist'] ?? 'Unknown Artist',
+                                    (audioBloc.player.audioSource == null && state.resumePositionMs != null)
+                                        ? 'Resume at ${_formatMs(state.resumePositionMs!)}'
+                                        : (track['artist'] ?? 'Unknown Artist'),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: YTColors.secondary,
+                                    style: TextStyle(
+                                      color: (audioBloc.player.audioSource == null && state.resumePositionMs != null)
+                                          ? YTColors.primary.withValues(alpha: 0.8)
+                                          : YTColors.secondary,
                                       fontSize: 13,
+                                      fontWeight: (audioBloc.player.audioSource == null && state.resumePositionMs != null)
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
                                     ),
                                   ),
                                 ],
@@ -132,16 +137,14 @@ class MiniPlayer extends StatelessWidget {
                                 );
                                 return IconButton(
                                   icon: Icon(
-                                    isFav
-                                        ? Icons.thumb_up
-                                        : Icons.thumb_up_outlined,
+                                    isFav ? Icons.thumb_up : Icons.thumb_up_outlined,
                                     color: YTColors.primary,
                                     size: 20,
                                   ),
                                   onPressed: () {
                                     context.read<StorageBloc>().add(
-                                      StorageToggleFavorite(track),
-                                    );
+                                          StorageToggleFavorite(track),
+                                        );
                                   },
                                 );
                               },
@@ -149,10 +152,7 @@ class MiniPlayer extends StatelessWidget {
                             Builder(
                               builder: (context) {
                                 Widget playPauseBtn;
-                                if (processingState ==
-                                        ProcessingState.loading ||
-                                    processingState ==
-                                        ProcessingState.buffering) {
+                                if (processingState == ProcessingState.loading || processingState == ProcessingState.buffering) {
                                   playPauseBtn = Padding(
                                     key: const ValueKey('loading'),
                                     padding: const EdgeInsets.all(12.0),
@@ -173,8 +173,7 @@ class MiniPlayer extends StatelessWidget {
                                       color: YTColors.primary,
                                       size: 28,
                                     ),
-                                    onPressed: () =>
-                                        audioBloc.add(AudioPause()),
+                                    onPressed: () => audioBloc.add(AudioPause()),
                                   );
                                 } else {
                                   playPauseBtn = IconButton(
@@ -184,17 +183,15 @@ class MiniPlayer extends StatelessWidget {
                                       color: YTColors.primary,
                                       size: 28,
                                     ),
-                                    onPressed: () =>
-                                        audioBloc.add(AudioResume()),
+                                    onPressed: () => audioBloc.add(AudioResume()),
                                   );
                                 }
                                 return AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 250),
-                                  transitionBuilder: (child, anim) =>
-                                      ScaleTransition(
-                                        scale: anim,
-                                        child: child,
-                                      ),
+                                  transitionBuilder: (child, anim) => ScaleTransition(
+                                    scale: anim,
+                                    child: child,
+                                  ),
                                   child: playPauseBtn,
                                 );
                               },
@@ -224,11 +221,14 @@ class MiniPlayer extends StatelessWidget {
                                 final position = posSnap.data ?? Duration.zero;
                                 double progress = 0.0;
                                 if (duration.inMilliseconds > 0) {
-                                  progress =
-                                      position.inMilliseconds /
-                                      duration.inMilliseconds;
-                                  progress = progress.clamp(0.0, 1.0);
+                                  progress = position.inMilliseconds / duration.inMilliseconds;
+                                } else if (audioBloc.player.audioSource == null && state.resumePositionMs != null) {
+                                  int totalMs = _parseDurationString(track['duration']);
+                                  if (totalMs > 0) {
+                                    progress = state.resumePositionMs! / totalMs;
+                                  }
                                 }
+                                progress = progress.clamp(0.0, 1.0);
                                 return LinearProgressIndicator(
                                   value: progress,
                                   backgroundColor: Colors.transparent,
@@ -266,5 +266,33 @@ class MiniPlayer extends StatelessWidget {
         },
       ),
     );
+  }
+
+  String _formatMs(int ms) {
+    if (ms <= 0) return '0:00';
+    final duration = Duration(milliseconds: ms);
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    if (duration.inHours > 0) {
+      return '${duration.inHours}:$minutes:$seconds';
+    }
+    return '$minutes:$seconds';
+  }
+
+  int _parseDurationString(String? durationStr) {
+    if (durationStr == null || durationStr.isEmpty) return 0;
+    final parts = durationStr.split(':');
+    if (parts.length == 2) {
+      final m = int.tryParse(parts[0]) ?? 0;
+      final s = int.tryParse(parts[1]) ?? 0;
+      return (m * 60 + s) * 1000;
+    } else if (parts.length == 3) {
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m = int.tryParse(parts[1]) ?? 0;
+      final s = int.tryParse(parts[2]) ?? 0;
+      return (h * 3600 + m * 60 + s) * 1000;
+    }
+    return 0;
   }
 }

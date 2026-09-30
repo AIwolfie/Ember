@@ -1,8 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../services/database_service.dart';
-import 'storage_event.dart';
-import 'storage_state.dart';
+import 'package:ember_flutter/services/database_service.dart';
+import 'package:ember_flutter/blocs/storage/storage_event.dart';
+import 'package:ember_flutter/blocs/storage/storage_state.dart';
 
 class StorageBloc extends Bloc<StorageEvent, StorageState> {
   final DatabaseService _db = DatabaseService.instance;

@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'database_service.dart';
-import '../utils/result.dart';
+import 'package:ember_flutter/services/database_service.dart';
+import 'package:ember_flutter/utils/result.dart';
 
 class PythonService {
   static const MethodChannel _channel = MethodChannel(
@@ -51,6 +51,22 @@ class PythonService {
     } catch (e) {
       debugPrint("Error in similar: $e");
       return Failure("Failed to find similar tracks.", e);
+    }
+  }
+
+  static Future<Result<List<Map<String, String>>>> topArtists() async {
+    try {
+      final List<dynamic> result = await _channel.invokeMethod('top_artists');
+      final data = result.map((e) {
+        final map = e as Map<dynamic, dynamic>;
+        return map.map(
+          (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+        );
+      }).toList();
+      return Success(data);
+    } catch (e) {
+      debugPrint("Error in topArtists: $e");
+      return Failure("Failed to find top artists.", e);
     }
   }
 
@@ -170,6 +186,31 @@ class PythonService {
     } catch (e) {
       debugPrint("Error in importPlaylist: $e");
       return Failure("Failed to import playlist.");
+    }
+  }
+
+  static Future<Result<Map<String, Map<String, double>>>> buildAffinityGraph(
+    String historyJson,
+  ) async {
+    try {
+      final String result = await _channel.invokeMethod('build_affinity_graph', {
+        'history_json': historyJson,
+      });
+      final decoded = jsonDecode(result) as Map<String, dynamic>;
+      final Map<String, Map<String, double>> graph = {};
+      decoded.forEach((key, value) {
+        if (value is Map) {
+           final Map<String, double> edges = {};
+           value.forEach((k2, v2) {
+             edges[k2.toString()] = (v2 as num).toDouble();
+           });
+           graph[key] = edges;
+        }
+      });
+      return Success(graph);
+    } catch (e) {
+      debugPrint("Error in buildAffinityGraph: $e");
+      return Failure("Failed to build affinity graph.", e);
     }
   }
 }

@@ -342,4 +342,35 @@ class DatabaseService {
     }
     return null;
   }
+
+  // --- Resume State ---
+  Future<void> saveResumeState(Map<String, String> track, int positionMs) async {
+    final db = await instance.database;
+    final data = {
+      'track': track,
+      'positionMs': positionMs,
+    };
+    await db.insert('cache', {
+      'key': 'resume_state',
+      'data': jsonEncode(data),
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<Map<String, dynamic>?> getResumeState() async {
+    final db = await instance.database;
+    final res = await db.query('cache', where: 'key = ?', whereArgs: ['resume_state']);
+    if (res.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(res.first['data'] as String) as Map<String, dynamic>;
+        return {
+          'track': Map<String, String>.from(decoded['track']),
+          'positionMs': decoded['positionMs'] as int,
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
 }
