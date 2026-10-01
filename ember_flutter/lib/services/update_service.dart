@@ -63,7 +63,7 @@ class UpdateService {
       final info = await PackageInfo.fromPlatform();
       final currentVersion = info.version;
 
-      final res = await http.get(Uri.parse('https://api.github.com/repos/KenilPatel0/Ember/releases/latest'));
+      final res = await http.get(Uri.parse('https://api.github.com/repos/AIwolfie/Ember/releases/latest'));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final tagName = (data['tag_name'] as String).replaceAll('v', '').trim();

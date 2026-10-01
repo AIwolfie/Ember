@@ -328,8 +328,10 @@ class _UpdateSectionState extends State<_UpdateSection> {
     final apkUrl = UpdateService.instance.availableApkUrl;
     if (apkUrl != null) {
       final uri = Uri.parse(apkUrl);
-      if (await canLaunchUrl(uri)) {
+      try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        debugPrint('Failed to launch URL: $e');
       }
       return;
     }
