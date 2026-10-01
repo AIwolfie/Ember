@@ -174,6 +174,7 @@ BASE_OPTIONS: Dict[str, Any] = {
     "extractor_args": {
         "youtube": {
             "player_client": ["android", "ios"],
+            "player_skip": ["webpage", "configs", "js"],
         }
     },
 }

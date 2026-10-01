@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -15,7 +16,7 @@ class UpdateChecker {
       final response = await http.get(Uri.parse(_repoUrl));
       if (response.statusCode == 200) {
         final List<dynamic> files = jsonDecode(response.body);
-        
+
         String latestVersion = '0.0.0';
         String downloadUrl = 'https://github.com/AIwolfie/Ember/raw/main/Android_APK/Ember_Latest.apk';
 
@@ -49,7 +50,7 @@ class UpdateChecker {
       for (int i = 0; i < 3; i++) {
         final curr = i < currentParts.length ? currentParts[i] : 0;
         final lat = i < latestParts.length ? latestParts[i] : 0;
-        
+
         if (lat > curr) return true;
         if (lat < curr) return false;
       }

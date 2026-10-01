@@ -1,24 +1,25 @@
 import 'dart:ui';
 
+import 'package:ember_flutter/blocs/audio/audio_bloc.dart';
+import 'package:ember_flutter/blocs/audio/audio_state.dart';
+import 'package:ember_flutter/blocs/storage/storage_bloc.dart';
+import 'package:ember_flutter/screens/about/about_screen.dart';
+import 'package:ember_flutter/screens/download/bloc/download_bloc.dart';
+import 'package:ember_flutter/screens/home/bloc/home_bloc.dart';
+import 'package:ember_flutter/screens/home/bloc/home_event.dart';
+import 'package:ember_flutter/screens/home/home_screen.dart';
+import 'package:ember_flutter/screens/library/library_screen.dart';
+import 'package:ember_flutter/screens/onboarding/onboarding_screen.dart';
+import 'package:ember_flutter/screens/search/search_screen.dart';
+import 'package:ember_flutter/screens/settings/settings_screen.dart';
+import 'package:ember_flutter/services/database_service.dart';
+import 'package:ember_flutter/services/update_service.dart';
+import 'package:ember_flutter/theme.dart';
+import 'package:ember_flutter/utils/update_checker.dart';
+import 'package:ember_flutter/widgets/mini_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'utils/update_checker.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-
-import 'blocs/audio/audio_bloc.dart';
-import 'blocs/audio/audio_state.dart';
-import 'blocs/download/download_bloc.dart';
-import 'blocs/home/home_bloc.dart';
-import 'blocs/home/home_event.dart';
-import 'blocs/storage/storage_bloc.dart';
-import 'screens/about_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/library_screen.dart';
-import 'screens/search_screen.dart';
-import 'services/update_service.dart';
-import 'theme.dart';
-import 'widgets/mini_player.dart';
-import 'widgets/settings_sheet.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,8 +55,32 @@ void main() async {
   );
 }
 
-class EmberApp extends StatelessWidget {
+class EmberApp extends StatefulWidget {
   const EmberApp({super.key});
+
+  @override
+  State<EmberApp> createState() => _EmberAppState();
+}
+
+class _EmberAppState extends State<EmberApp> {
+  bool _isLoading = true;
+  bool _needsOnboarding = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final db = DatabaseService.instance;
+    final onboardingDone = await db.getCache('onboarding_done');
+    if (onboardingDone == null) {
+      _needsOnboarding = true;
+      await db.setCache('onboarding_done', 'true');
+    }
+    setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +90,9 @@ class EmberApp extends StatelessWidget {
           title: 'Ember',
           debugShowCheckedModeBanner: false,
           theme: YTTheme.getTheme(currentTheme),
-          home: const MainLayout(),
+          home: _isLoading
+              ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+              : (_needsOnboarding ? const OnboardingScreen() : const MainLayout()),
         );
       },
     );
@@ -115,143 +142,136 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, EmberThemeOption>(
-      builder: (context, themeOption) {
-        return Scaffold(
-          backgroundColor: YTColors.background,
-          extendBody: true,
-          body: BlocBuilder<AudioBloc, AudioState>(
-        builder: (context, audioState) {
-          final topColor = audioState.dominantColor ?? const Color(0xFF6B1B1B);
-          return Stack(
-            children: [
-              if (_currentIndex == 0) // Only on home screen
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 400,
-                  child: AnimatedContainer(
-                    duration: const Duration(seconds: 1),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          topColor.withValues(alpha: 0.3),
-                          YTColors.background,
-                        ],
-                        stops: const [0.0, 1.0],
+    return BlocBuilder<ThemeCubit, EmberThemeOption>(builder: (context, themeOption) {
+      return Scaffold(
+        backgroundColor: YTColors.background,
+        extendBody: true,
+        body: BlocBuilder<AudioBloc, AudioState>(
+          builder: (context, audioState) {
+            final topColor = audioState.dominantColor ?? const Color(0xFF6B1B1B);
+            return Stack(
+              children: [
+                if (_currentIndex == 0) // Only on home screen
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 400,
+                    child: AnimatedContainer(
+                      duration: const Duration(seconds: 1),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            topColor.withValues(alpha: 0.3),
+                            YTColors.background,
+                          ],
+                          stops: const [0.0, 1.0],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              NestedScrollView(
-                physics: const ClampingScrollPhysics(),
-                headerSliverBuilder:
-                    (BuildContext context, bool innerBoxIsScrolled) {
-                      return [
-                        if (_currentIndex ==
-                            0) // Only show top bar on home screen
-                          SliverAppBar(
-                            floating: true,
-                            snap: true,
-                            backgroundColor:
-                                Colors.transparent, // transparent for gradient
-                            surfaceTintColor: Colors.transparent,
-                            title: Row(
-                              children: [
-                                const Icon(
-                                  Icons.whatshot,
-                                  color: Colors.orangeAccent,
-                                  size: 32,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Ember',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .displayMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.2,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            actions: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.settings_outlined,
-                                  color: Colors.white70,
-                                ),
-                                tooltip: 'Settings',
-                                onPressed: () => showSettingsSheet(context),
+                NestedScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+                    return [
+                      if (_currentIndex == 0) // Only show top bar on home screen
+                        SliverAppBar(
+                          floating: true,
+                          snap: true,
+                          backgroundColor: Colors.transparent, // transparent for gradient
+                          surfaceTintColor: Colors.transparent,
+                          title: Row(
+                            children: [
+                              const Icon(
+                                Icons.whatshot,
+                                color: Colors.orangeAccent,
+                                size: 32,
                               ),
                               const SizedBox(width: 8),
+                              Text(
+                                'Ember',
+                                style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2,
+                                    ),
+                              ),
                             ],
                           ),
-                      ];
-                    },
-                body: IndexedStack(
-                  index: _currentIndex,
-                  children: const [
-                    HomeScreen(),
-                    SearchScreen(),
-                    LibraryScreen(),
-                    AboutScreen(),
+                          actions: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.settings_outlined,
+                                color: Colors.white70,
+                              ),
+                              tooltip: 'Settings',
+                              onPressed: () => showSettingsSheet(context),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                        ),
+                    ];
+                  },
+                  body: IndexedStack(
+                    index: _currentIndex,
+                    children: const [
+                      HomeScreen(),
+                      SearchScreen(),
+                      LibraryScreen(),
+                      AboutScreen(),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const MiniPlayer(),
+            ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+                child: BottomNavigationBar(
+                  backgroundColor: YTColors.surface.withValues(alpha: 0.85),
+                  elevation: 0,
+                  type: BottomNavigationBarType.fixed,
+                  currentIndex: _currentIndex,
+                  onTap: (index) {
+                    setState(() {
+                      _currentIndex = index;
+                    });
+                  },
+                  items: const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.home_outlined),
+                      activeIcon: Icon(Icons.home_rounded),
+                      label: 'Home',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.search_outlined),
+                      activeIcon: Icon(Icons.search_rounded),
+                      label: 'Search',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.library_music_outlined),
+                      activeIcon: Icon(Icons.library_music_rounded),
+                      label: 'Library',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.info_outline_rounded),
+                      activeIcon: Icon(Icons.info_rounded),
+                      label: 'About',
+                    ),
                   ],
                 ),
               ),
-            ],
-          );
-        },
-      ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const MiniPlayer(),
-          ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
-              child: BottomNavigationBar(
-                backgroundColor: YTColors.surface.withValues(alpha: 0.85),
-                elevation: 0,
-                type: BottomNavigationBarType.fixed,
-                currentIndex: _currentIndex,
-                onTap: (index) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
-                },
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.home_outlined),
-                    activeIcon: Icon(Icons.home_rounded),
-                    label: 'Home',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.search_outlined),
-                    activeIcon: Icon(Icons.search_rounded),
-                    label: 'Search',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.library_music_outlined),
-                    activeIcon: Icon(Icons.library_music_rounded),
-                    label: 'Library',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.info_outline_rounded),
-                    activeIcon: Icon(Icons.info_rounded),
-                    label: 'About',
-                  ),
-                ],
-              ),
             ),
-          ),
-        ],
-      ),
-    );
-  });
+          ],
+        ),
+      );
+    });
   }
 }

@@ -2,8 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../blocs/audio/audio_bloc.dart';
-import '../theme.dart';
+import 'package:ember_flutter/blocs/audio/audio_bloc.dart';
+import 'package:ember_flutter/theme.dart';
 
 void showPlaybackSpeedSheet(BuildContext context, AudioBloc audioBloc) {
   showModalBottomSheet(

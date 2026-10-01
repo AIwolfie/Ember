@@ -8,6 +8,7 @@ class AudioState extends Equatable {
   final Map<String, String>? currentTrack;
   final Color? dominantColor;
   final dynamic playerState; // just_audio PlayerState
+  final int? resumePositionMs;
 
   const AudioState({
     this.queue = const [],
@@ -15,6 +16,7 @@ class AudioState extends Equatable {
     this.currentTrack,
     this.dominantColor,
     this.playerState,
+    this.resumePositionMs,
   });
 
   AudioState copyWith({
@@ -23,6 +25,7 @@ class AudioState extends Equatable {
     Map<String, String>? currentTrack,
     Color? dominantColor,
     dynamic playerState,
+    int? resumePositionMs,
   }) {
     return AudioState(
       queue: queue ?? this.queue,
@@ -30,6 +33,7 @@ class AudioState extends Equatable {
       currentTrack: currentTrack ?? this.currentTrack, // allow null using specific pattern if needed, but here simple
       dominantColor: dominantColor ?? this.dominantColor,
       playerState: playerState ?? this.playerState,
+      resumePositionMs: resumePositionMs ?? this.resumePositionMs,
     );
   }
 
@@ -54,5 +58,6 @@ class AudioState extends Equatable {
     currentTrack,
     dominantColor,
     playerState,
+    resumePositionMs,
   ];
 }

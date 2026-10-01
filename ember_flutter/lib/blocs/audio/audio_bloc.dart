@@ -6,11 +6,12 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:palette_generator/palette_generator.dart';
 
-import '../../services/python_service.dart';
-import '../../services/database_service.dart';
-import '../../utils/result.dart';
-import 'audio_event.dart';
-import 'audio_state.dart';
+import 'package:ember_flutter/services/python_service.dart';
+import 'package:ember_flutter/services/database_service.dart';
+import 'package:ember_flutter/services/recommender_service.dart';
+import 'package:ember_flutter/utils/result.dart';
+import 'package:ember_flutter/blocs/audio/audio_event.dart';
+import 'package:ember_flutter/blocs/audio/audio_state.dart';
 
 class AudioBloc extends Bloc<AudioEvent, AudioState> {
   late final AndroidEqualizer equalizer;
@@ -23,6 +24,7 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
   // Storage of stream subs
   StreamSubscription? _currentIndexSub;
   StreamSubscription? _playerStateSub;
+  Timer? _resumeSaveTimer;
 
   AudioBloc() : super(const AudioState()) {
     equalizer = AndroidEqualizer();
@@ -32,10 +34,41 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
     // Default enable equalizer dynamically when ready
     equalizer.setEnabled(true);
 
+    _loadResumeState();
+
+    _resumeSaveTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (player.playing && state.currentTrack != null) {
+        DatabaseService.instance.saveResumeState(state.currentTrack!, player.position.inMilliseconds);
+      }
+    });
+
     on<AudioPlayQueue>(_onPlayQueue);
-    on<AudioPause>((event, emit) => player.pause());
-    on<AudioResume>((event, emit) => player.play());
+    on<AudioPause>((event, emit) {
+      player.pause();
+      if (state.currentTrack != null) {
+        DatabaseService.instance.saveResumeState(state.currentTrack!, player.position.inMilliseconds);
+      }
+    });
+    on<AudioResume>((event, emit) {
+      if (player.audioSource == null && state.currentTrack != null && state.queue.isEmpty) {
+        add(AudioPlayQueue([state.currentTrack!], startIndex: 0));
+      } else {
+        player.play();
+      }
+    });
+    
+    on<AudioSetResumeState>((event, emit) {
+      emit(state.copyWith(
+        currentTrack: event.track,
+        resumePositionMs: event.positionMs,
+      ));
+    });
+
     on<AudioStop>((event, emit) => player.stop());
+    on<AudioClear>((event, emit) {
+      player.stop();
+      emit(const AudioState());
+    });
     on<AudioSeekToNext>((event, emit) => player.seekToNext());
     on<AudioSeekToPrevious>(_onSeekToPrevious);
     on<AudioJumpToQueueIndex>(_onJumpToQueueIndex);
@@ -69,10 +102,26 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
     });
   }
 
+  Future<void> _loadResumeState() async {
+    final resumeState = await DatabaseService.instance.getResumeState();
+    if (resumeState != null && state.currentTrack == null && state.queue.isEmpty) {
+      final track = resumeState['track'] as Map<String, String>;
+      final positionMs = resumeState['positionMs'] as int;
+      add(AudioSetResumeState(track, positionMs));
+      if (track['artworkUrl'] != null && track['artworkUrl']!.isNotEmpty) {
+        _updatePalette(track['artworkUrl']!);
+      }
+    }
+  }
+
   @override
   Future<void> close() {
     _currentIndexSub?.cancel();
     _playerStateSub?.cancel();
+    _resumeSaveTimer?.cancel();
+    if (state.currentTrack != null) {
+      DatabaseService.instance.saveResumeState(state.currentTrack!, player.position.inMilliseconds);
+    }
     player.dispose();
     return super.close();
   }
@@ -122,6 +171,10 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
 
     final success = await _addTrackToPlaylist(offset, queue);
     if (success) {
+      if (state.resumePositionMs != null && state.resumePositionMs! > 0) {
+        await player.seek(Duration(milliseconds: state.resumePositionMs!));
+        emit(state.copyWith(resumePositionMs: 0)); 
+      }
       player.play();
       // Preload next tracks
       _preloadNext(offset + 1); // Trigger async preloading
@@ -314,21 +367,20 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
     if (videoId == null) return;
 
     try {
-      final similarResult = await PythonService.similar(videoId);
-      if (similarResult is Success<List<Map<String, String>>>) {
-        final similarTracks = similarResult.data;
-        if (similarTracks.isNotEmpty) {
-          final currentVideoIds = state.queue.map((e) => e['videoId']).toSet();
-          final newTracks = similarTracks
-              .where((t) => !currentVideoIds.contains(t['videoId']))
-              .toList();
+      // Fetch Recommendations using the new multi-seed logic
+      final recommendedTracks = await RecommenderService.instance.getRecommendations([videoId]);
+      if (recommendedTracks.isNotEmpty) {
+        final startIdx = (state.queue.length - 20) < 0 ? 0 : (state.queue.length - 20);
+        final recentVideoIds = state.queue.skip(startIdx).map((e) => e['videoId']).toSet();
+        final newTracks = recommendedTracks
+            .where((t) => !recentVideoIds.contains(t['videoId']))
+            .toList();
 
-          if (newTracks.isNotEmpty) {
-            final updatedQueue = List<Map<String, String>>.from(state.queue)
-              ..addAll(newTracks);
-            if (!isClosed) {
-              _internalEmitQueueUpdate(updatedQueue);
-            }
+        if (newTracks.isNotEmpty) {
+          final updatedQueue = List<Map<String, String>>.from(state.queue)
+            ..addAll(newTracks.take(10)); // Add next 10 recommended tracks
+          if (!isClosed) {
+            _internalEmitQueueUpdate(updatedQueue);
           }
         }
       }

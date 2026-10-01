@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme.dart';
+import 'package:ember_flutter/theme.dart';
 
 class EmberAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget? title;

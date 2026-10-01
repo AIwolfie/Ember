@@ -1,8 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../blocs/audio/audio_bloc.dart';
-import '../services/sleep_timer_service.dart';
-import '../theme.dart';
+import 'package:ember_flutter/blocs/audio/audio_bloc.dart';
+import 'package:ember_flutter/services/sleep_timer_service.dart';
+import 'package:ember_flutter/theme.dart';
 
 void showSleepTimerSheet(BuildContext context, AudioBloc audioBloc) {
   showModalBottomSheet(
