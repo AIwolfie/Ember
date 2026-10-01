@@ -80,8 +80,10 @@ class UpdateChecker {
             ElevatedButton(
               onPressed: () async {
                 final uri = Uri.parse(url);
-                if (await canLaunchUrl(uri)) {
+                try {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } catch (e) {
+                  debugPrint('Failed to launch URL: $e');
                 }
                 if (context.mounted) {
                   Navigator.of(context).pop();
@@ -96,3 +98,4 @@ class UpdateChecker {
     );
   }
 }
+
