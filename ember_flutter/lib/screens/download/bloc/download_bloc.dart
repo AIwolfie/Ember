@@ -143,7 +143,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
         final downloads = await DatabaseService.instance.getAllDownloads();
 
         // Ensure we invoke emit safely
-        if (!isClosed)
+        if (!isClosed) {
           emit(
             state.copyWith(
               progress: finalProgress,
@@ -151,6 +151,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
               downloadedTracks: downloads,
             ),
           );
+        }
       } catch (e) {
         _failDownload(videoId);
       }

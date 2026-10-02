@@ -44,8 +44,9 @@ void showEqualizerSheet(BuildContext context) {
             FutureBuilder<AndroidEqualizerParameters>(
               future: equalizer.parameters,
               builder: (context, snapshot) {
-                if (!snapshot.hasData)
+                if (!snapshot.hasData) {
                   return CircularProgressIndicator(color: YTColors.primary);
+                }
 
                 final params = snapshot.data!;
                 return StreamBuilder<bool>(

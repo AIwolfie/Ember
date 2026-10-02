@@ -9,6 +9,14 @@ abstract class HomeState extends Equatable {
 
 class HomeLoading extends HomeState {}
 
+class HomeAILoading extends HomeState {
+  final String targetMood;
+  const HomeAILoading(this.targetMood);
+
+  @override
+  List<Object?> get props => [targetMood];
+}
+
 class HomeLoaded extends HomeState {
   final List<Map<String, dynamic>> sections;
   final String? activeMood;

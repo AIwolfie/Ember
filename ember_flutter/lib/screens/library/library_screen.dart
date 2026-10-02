@@ -57,12 +57,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _showImportPlaylistDialog(BuildContext context) {
     final TextEditingController urlController = TextEditingController();
+    bool isImporting = false;
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            bool isImporting = false;
             return AlertDialog(
               backgroundColor: YTColors.surface,
               shape: RoundedRectangleBorder(
@@ -131,6 +131,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 await DatabaseService.instance.addToPlaylist(playlistName, trackMap);
                               }
                             }
+                            if (!context.mounted) return;
                             context.read<StorageBloc>().add(StorageLoadAll());
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -142,6 +143,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               ),
                             );
                           } else {
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('No tracks could be found in this playlist.'),
@@ -150,6 +152,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             );
                           }
                         } else if (res is Failure) {
+                          if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text((res as Failure).message),

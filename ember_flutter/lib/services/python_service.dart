@@ -74,6 +74,22 @@ class PythonService {
     String videoId,
   ) async {
     try {
+      final db = DatabaseService.instance;
+      final cacheKey = 'stream_url_$videoId';
+      
+      final cachedString = await db.getCache(cacheKey);
+      if (cachedString != null) {
+        try {
+           final decoded = jsonDecode(cachedString);
+           final timestamp = decoded['timestamp'] ?? 0;
+           // 5 hour expiration for streaming links (5 * 60 * 60 * 1000 = 18000000 ms)
+           if (DateTime.now().millisecondsSinceEpoch - timestamp < 18000000) {
+             final data = (decoded['data'] as Map).cast<String, String?>();
+             return Success(data);
+           }
+        } catch (_) {}
+      }
+
       final Map<dynamic, dynamic> result = await _channel.invokeMethod(
         'get_stream_url',
         {'videoId': videoId},
@@ -86,6 +102,12 @@ class PythonService {
           data['error']!.isNotEmpty) {
         return Failure(data['error'] ?? "Unknown python error");
       }
+      
+      await db.setCache(cacheKey, jsonEncode({
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'data': data
+      }));
+
       return Success(data);
     } catch (e) {
       debugPrint("Error in getStreamUrl: $e");

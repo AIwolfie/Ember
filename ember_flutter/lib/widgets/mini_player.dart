@@ -152,7 +152,7 @@ class MiniPlayer extends StatelessWidget {
                             Builder(
                               builder: (context) {
                                 Widget playPauseBtn;
-                                if (processingState == ProcessingState.loading || processingState == ProcessingState.buffering) {
+                                if (state.isFetchingStream || processingState == ProcessingState.loading || processingState == ProcessingState.buffering) {
                                   playPauseBtn = Padding(
                                     key: const ValueKey('loading'),
                                     padding: const EdgeInsets.all(12.0),

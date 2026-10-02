@@ -46,19 +46,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _playSong(BuildContext context, Map<String, String> track) {
     context.read<AudioBloc>().add(AudioPlayQueue([track], startIndex: 0));
-
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const FullPlayerScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(0.0, 1.0);
-          const end = Offset.zero;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.fastOutSlowIn));
-          return SlideTransition(position: animation.drive(tween), child: child);
-        },
-      ),
-    );
   }
 
   Widget _buildListeningStats() {
@@ -111,7 +98,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: YTColors.primary.withOpacity(0.2),
+                      color: YTColors.primary.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -122,7 +109,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../services/update_service.dart';
 import '../about/about_screen.dart';
@@ -251,7 +252,13 @@ class SettingsScreen extends StatelessWidget {
                       child: Icon(Icons.info_outline_rounded, color: activeTheme.primary, size: 20),
                     ),
                     title: const Text('About Ember', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: const Text('v1.0.0 • Mayank & Kenil', style: TextStyle(color: YTColors.secondary, fontSize: 12)),
+                    subtitle: FutureBuilder<PackageInfo>(
+                      future: PackageInfo.fromPlatform(),
+                      builder: (context, snapshot) {
+                        final version = snapshot.hasData ? snapshot.data!.version : '1.0.1';
+                        return Text('v$version • Mayank & Kenil', style: const TextStyle(color: YTColors.secondary, fontSize: 12));
+                      },
+                    ),
                     trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
                     onTap: () {
                       Navigator.pop(context);
@@ -284,11 +291,24 @@ class _UpdateSectionState extends State<_UpdateSection> {
   int? _patchNumber;
   UpdateStatus? _status;
   String? _feedback;
+  String _version = '1.0.1';
 
   @override
   void initState() {
     super.initState();
     _loadPatchNumber();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _version = info.version;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadPatchNumber() async {
@@ -357,7 +377,7 @@ class _UpdateSectionState extends State<_UpdateSection> {
   Widget build(BuildContext context) {
     final isOutdated = _status == UpdateStatus.outdated;
     final isRestartRequired = _status == UpdateStatus.restartRequired;
-    final versionDisplay = _patchNumber != null ? 'Version 1.0.0 • Patch $_patchNumber' : 'Version 1.0.0';
+    final versionDisplay = _patchNumber != null ? 'Version $_version • Patch $_patchNumber' : 'Version $_version';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
