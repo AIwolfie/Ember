@@ -39,6 +39,7 @@ jobs:
       - name: Build Standard APK
         run: |
           cd ember_flutter
+          echo "GROQ_KEY=${{ secrets.GROQ_KEY }}" > .env
           flutter pub get
           flutter build apk --release
 

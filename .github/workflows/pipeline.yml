@@ -47,6 +47,10 @@ jobs:
         with:
           cache: true
 
+      - name: Inject .env config
+        run: |
+          echo "GROQ_KEY=${{ secrets.GROQ_KEY }}" > ember_flutter/.env
+
       - name: Get Dependencies
         run: flutter pub get
         working-directory: ember_flutter
