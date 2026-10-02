@@ -1,5 +1,6 @@
 import 'package:ember_flutter/widgets/shared_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -18,6 +19,10 @@ class HomeScreen extends StatelessWidget {
         builder: (context, state) {
           if (state is HomeLoading) {
             return _buildHomeSkeleton();
+          }
+
+          if (state is HomeAILoading) {
+            return _buildAILoadingSkeleton(state.targetMood);
           }
 
           if (state is HomeError) {
@@ -133,6 +138,7 @@ class HomeScreen extends StatelessWidget {
                     if (state.isColdStart && state.activeMood == null) _buildWelcomeBanner(),
                     ...sections.map((section) {
                       final title = section['title'] as String;
+                      final subtitle = section['subtitle'] as String?;
                       final rawTracks = section['tracks'] as List<dynamic>;
                       final items = rawTracks
                           .map(
@@ -142,10 +148,33 @@ class HomeScreen extends StatelessWidget {
                           )
                           .toList();
 
-                      return Column(
+                      final isVIP = title.toLowerCase().contains("dj ai");
+
+                      Widget sectionContent = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SharedUI.buildSectionTitle(title),
+                          if (subtitle != null && subtitle.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 12.0),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: YTColors.primary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: YTColors.primary.withValues(alpha: 0.3)),
+                                ),
+                                child: Text(
+                                  subtitle,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 14,
+                                    height: 1.4,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ),
                           // Only use premium grid for Quick Picks, everything else uses horizontal carousel
                           if (title.toLowerCase().contains('quick picks'))
                             SharedUI.buildQuickPicksGrid(context, items)
@@ -161,6 +190,29 @@ class HomeScreen extends StatelessWidget {
                           const SizedBox(height: 8),
                         ],
                       );
+                      
+                      if (isVIP) {
+                         return Container(
+                            margin: const EdgeInsets.only(bottom: 24),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                               gradient: LinearGradient(
+                                  colors: [
+                                     Colors.deepPurpleAccent.withValues(alpha: 0.15),
+                                     YTColors.primary.withValues(alpha: 0.05),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                               ),
+                               border: Border.symmetric(
+                                  horizontal: BorderSide(color: Colors.deepPurpleAccent.withValues(alpha: 0.2)),
+                               )
+                            ),
+                            child: sectionContent,
+                         );
+                      }
+                      
+                      return sectionContent;
                     }),
                   ],
                 ),
@@ -190,6 +242,7 @@ class HomeScreen extends StatelessWidget {
               color: Colors.transparent,
               child: InkWell(
                 onTap: () {
+                  HapticFeedback.lightImpact();
                   if (isSelected) {
                     context.read<HomeBloc>().add(const HomeLoadRequested());
                   } else {
@@ -337,6 +390,39 @@ class HomeScreen extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildAILoadingSkeleton(String mood) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Shimmer.fromColors(
+            baseColor: YTColors.primary.withValues(alpha: 0.8),
+            highlightColor: Colors.deepPurpleAccent,
+            child: const Icon(
+              Icons.auto_awesome,
+              size: 72,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Shimmer.fromColors(
+            baseColor: Colors.white60,
+            highlightColor: Colors.white,
+            child: Text(
+              "DJ AI is carefully crafting your\n$mood mix...",
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                fontStyle: FontStyle.italic,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

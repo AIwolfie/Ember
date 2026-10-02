@@ -63,19 +63,6 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
 
     context.read<AudioBloc>().add(AudioPlayQueue(queue, startIndex: 0));
     context.read<StorageBloc>().add(StorageAddPlayHistory(queue.first));
-
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const FullPlayerScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(0.0, 1.0);
-          const end = Offset.zero;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.fastOutSlowIn));
-          return SlideTransition(position: animation.drive(tween), child: child);
-        },
-      ),
-    );
   }
 
   @override
@@ -401,18 +388,6 @@ class _PlaylistScreenState extends State<PlaylistScreen> {
                               onTap: () {
                                 context.read<AudioBloc>().add(AudioPlayQueue(tracks, startIndex: index));
                                 context.read<StorageBloc>().add(StorageAddPlayHistory(track));
-
-                                Navigator.push(
-                                  context,
-                                  PageRouteBuilder(
-                                    pageBuilder: (context, animation, secondaryAnimation) => const FullPlayerScreen(),
-                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                      var tween =
-                                          Tween(begin: const Offset(0.0, 1.0), end: Offset.zero).chain(CurveTween(curve: Curves.fastOutSlowIn));
-                                      return SlideTransition(position: animation.drive(tween), child: child);
-                                    },
-                                  ),
-                                );
                               },
                             ),
                           );

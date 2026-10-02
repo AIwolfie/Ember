@@ -157,6 +157,7 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
             queue: queue,
             nativeIndexOffset: offset,
             currentTrack: currentTrack,
+            isFetchingStream: true,
           ),
     );
 
@@ -170,6 +171,9 @@ class AudioBloc extends Bloc<AudioEvent, AudioState> {
     await player.setAudioSource(_playlist);
 
     final success = await _addTrackToPlaylist(offset, queue);
+    
+    emit(state.copyWith(isFetchingStream: false));
+
     if (success) {
       if (state.resumePositionMs != null && state.resumePositionMs! > 0) {
         await player.seek(Duration(milliseconds: state.resumePositionMs!));

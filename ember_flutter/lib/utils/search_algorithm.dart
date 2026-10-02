@@ -131,8 +131,9 @@ class SearchAlgorithm {
 
     // If it is a standard list item for a track, YTMusic style shows just "Artist • length"
     if (!isTopCard && (type == 'song' || type == 'video')) {
-      if (topArtist.isNotEmpty && duration.isNotEmpty)
+      if (topArtist.isNotEmpty && duration.isNotEmpty) {
         return '$topArtist • $duration';
+      }
       if (topArtist.isNotEmpty) return topArtist;
       return 'Unknown';
     }

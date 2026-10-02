@@ -229,19 +229,6 @@ class SharedUI {
   static void playFromList(BuildContext context, List<Map<String, String>> list, int index) {
     context.read<AudioBloc>().add(AudioPlayQueue(list, startIndex: index));
     context.read<StorageBloc>().add(StorageAddPlayHistory(list[index]));
-
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const FullPlayerScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(0.0, 1.0);
-          const end = Offset.zero;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.fastOutSlowIn));
-          return SlideTransition(position: animation.drive(tween), child: child);
-        },
-      ),
-    );
   }
 
   static Widget buildHorizontalList(List<Map<String, String>> items, {String listId = 'default'}) {

@@ -20,9 +20,11 @@ import 'package:ember_flutter/widgets/mini_player.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.example.ember.channel.audio',

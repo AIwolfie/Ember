@@ -435,7 +435,9 @@ class ProfileScreen extends StatelessWidget {
                             controller.text.trim(),
                           );
                           setState(() => isLoading = false);
+                          if (!ctx.mounted) return;
                           Navigator.pop(ctx);
+                          if (!context.mounted) return;
                           if (res is Success<Map<String, dynamic>>) {
                             final data = res.data;
                             final title = data['title'] as String;

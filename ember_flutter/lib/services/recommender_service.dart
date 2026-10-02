@@ -8,7 +8,7 @@ class RecommenderService {
   static final RecommenderService instance = RecommenderService._init();
   RecommenderService._init();
 
-  Map<String, double> _artistAffinityCache = {};
+  final Map<String, double> _artistAffinityCache = {};
   Map<String, Map<String, double>> _affinityGraph = {};
   bool _isInitialized = false;
   

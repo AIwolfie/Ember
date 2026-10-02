@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ember_flutter/services/python_service.dart';
 import 'package:ember_flutter/services/database_service.dart';
 import 'package:ember_flutter/services/recommender_service.dart';
+import 'package:ember_flutter/services/ai_recommendation_service.dart';
 import 'package:ember_flutter/utils/result.dart';
 import 'package:ember_flutter/screens/home/bloc/home_event.dart';
 import 'package:ember_flutter/screens/home/bloc/home_state.dart';
@@ -20,58 +21,46 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     Emitter<HomeState> emit,
   ) async {
     if (state is! HomeLoaded) {
-      emit(HomeLoading());
+      if (event.mood != null) {
+        emit(HomeAILoading(event.mood!));
+      } else {
+        emit(HomeLoading());
+      }
+    } else {
+      if (event.mood != null) {
+         emit(HomeAILoading(event.mood!));
+      }
     }
 
     try {
       if (event.mood != null) {
-        // Query YT for the top mood hits
-        final result = await PythonService.search("${event.mood} hits", filterType: "songs");
-        switch (result) {
-          case Success():
-            if (result.data.isEmpty) {
-              emit(const HomeError("No tracks found for this mood."));
-            } else {
-              List<dynamic> rawHits = result.data;
-              List<dynamic> curatedMix = [];
+        // Query AI for the ultimate mood mix
+        final aiResult = await AiRecommendationService.getAiMix(event.mood!);
+        final sections = <Map<String, dynamic>>[];
 
-              try {
-                // Grab the absolute top hits from this mood and seed them into our Recommender
-                final seedIds = rawHits.take(2).map((e) => (e as Map)['videoId']?.toString() ?? '').where((id) => id.isNotEmpty).toList();
-                if (seedIds.isNotEmpty) {
-                  final curatedRecs = await RecommenderService.instance.getRecommendations(seedIds);
-                  if (curatedRecs.isNotEmpty) {
-                    curatedMix = curatedRecs; // Highly personalized mix!
-                  }
-                }
-              } catch (_) {}
-              
-              final sections = <Map<String, dynamic>>[];
-              
-              if (curatedMix.isNotEmpty) {
-                sections.add({
-                  "title": "Your ${event.mood} Mix",
-                  "tracks": curatedMix.take(16).toList(), // Limit to 4 pages of 4 items
-                });
-              }
-
-              if (rawHits.isNotEmpty) {
-                sections.add({
-                  "title": "Top ${event.mood} Hits",
-                  "tracks": rawHits.take(16).toList(), // Limit to 4 pages of 4 items
-                });
-              }
-
-              if (sections.isEmpty) {
-                 emit(const HomeError("No tracks found for this mood."));
-                 return;
-              }
-
-              emit(HomeLoaded(sections, activeMood: event.mood));
-            }
-          case Failure():
-            emit(HomeError(result.message));
+        if (aiResult.songs.isNotEmpty) {
+          sections.add({
+            "title": "DJ AI: ${event.mood} Mix",
+            "subtitle": "\u2728 ${aiResult.reason}",
+            "tracks": aiResult.songs.take(16).toList(),
+          });
         }
+
+        // Backup plan: fetch standard hits as well
+        final result = await PythonService.search("${event.mood} hits", filterType: "songs");
+        if (result.isSuccess && result.data != null && (result.data as List).isNotEmpty) {
+           sections.add({
+             "title": "Top ${event.mood} Hits",
+             "tracks": (result.data as List).take(16).toList(),
+           });
+        }
+
+        if (sections.isEmpty) {
+           emit(const HomeError("No tracks found for this mood."));
+           return;
+        }
+
+        emit(HomeLoaded(sections, activeMood: event.mood));
       } else {
         if (!event.forceRefresh && _cachedBaseSections != null) {
            // Instantly restore base feed if available in memory
@@ -141,8 +130,8 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
                   final validArtists = <Map<String, dynamic>>[];
                   
                   for (var res in artistResults) {
-                    if (res is Success) {
-                      final data = (res as Success).data;
+                    if (res.isSuccess) {
+                      final data = res.data;
                       if (data is List && data.isNotEmpty) {
                         final items = data.cast<Map<String, dynamic>>();
                         if (items.isNotEmpty) {

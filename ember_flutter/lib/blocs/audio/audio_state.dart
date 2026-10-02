@@ -9,6 +9,7 @@ class AudioState extends Equatable {
   final Color? dominantColor;
   final dynamic playerState; // just_audio PlayerState
   final int? resumePositionMs;
+  final bool isFetchingStream;
 
   const AudioState({
     this.queue = const [],
@@ -17,6 +18,7 @@ class AudioState extends Equatable {
     this.dominantColor,
     this.playerState,
     this.resumePositionMs,
+    this.isFetchingStream = false,
   });
 
   AudioState copyWith({
@@ -26,6 +28,7 @@ class AudioState extends Equatable {
     Color? dominantColor,
     dynamic playerState,
     int? resumePositionMs,
+    bool? isFetchingStream,
   }) {
     return AudioState(
       queue: queue ?? this.queue,
@@ -34,6 +37,7 @@ class AudioState extends Equatable {
       dominantColor: dominantColor ?? this.dominantColor,
       playerState: playerState ?? this.playerState,
       resumePositionMs: resumePositionMs ?? this.resumePositionMs,
+      isFetchingStream: isFetchingStream ?? this.isFetchingStream,
     );
   }
 
@@ -48,6 +52,7 @@ class AudioState extends Equatable {
       playerState: playerState,
       currentTrack: currentTrack ? null : this.currentTrack,
       dominantColor: dominantColor ? null : this.dominantColor,
+      isFetchingStream: isFetchingStream,
     );
   }
 
@@ -59,5 +64,6 @@ class AudioState extends Equatable {
     dominantColor,
     playerState,
     resumePositionMs,
+    isFetchingStream,
   ];
 }

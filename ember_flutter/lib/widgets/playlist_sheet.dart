@@ -61,13 +61,14 @@ void showPlaylistSheet(BuildContext context, {Map<String, String>? track}) {
                     onSubmitted: (name) {
                       if (name.trim().isNotEmpty) {
                         storageBloc.add(StorageCreatePlaylist(name.trim()));
-                        if (track != null)
+                        if (track != null) {
                           storageBloc.add(
                             StorageAddToPlaylist(
                               name: name.trim(),
                               track: track,
                             ),
                           );
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -93,10 +94,11 @@ void showPlaylistSheet(BuildContext context, {Map<String, String>? track}) {
                     final name = ctrl.text.trim();
                     if (name.isNotEmpty) {
                       storageBloc.add(StorageCreatePlaylist(name));
-                      if (track != null)
+                      if (track != null) {
                         storageBloc.add(
                           StorageAddToPlaylist(name: name, track: track),
                         );
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
@@ -116,8 +118,9 @@ void showPlaylistSheet(BuildContext context, {Map<String, String>? track}) {
 
             BlocBuilder<StorageBloc, StorageState>(
               builder: (context, state) {
-                if (state.playlists.isNotEmpty)
+                if (state.playlists.isNotEmpty) {
                   const Divider(color: YTColors.divider, height: 1);
+                }
                 if (state.playlists.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.all(16.0),

@@ -29,7 +29,6 @@ class FullPlayerScreen extends StatefulWidget {
 
 class _FullPlayerScreenState extends State<FullPlayerScreen> {
   final PageController _pageController = PageController(initialPage: 0);
-  int _currentPage = 0;
 
   Future<Result<String>>? _lyricsFuture;
   String? _lastLyricsVideoId;
@@ -766,7 +765,6 @@ class _FullPlayerScreenState extends State<FullPlayerScreen> {
                       stream: audioBloc.player.durationStream,
                       builder: (context, durSnap) {
                         final pos = posSnap.data ?? Duration.zero;
-                        final dur = durSnap.data ?? Duration.zero;
 
                         int activeIndex = -1;
                         if (hasTimestamps) {

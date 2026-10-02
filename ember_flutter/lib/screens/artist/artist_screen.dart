@@ -31,11 +31,12 @@ class _ArtistScreenState extends State<ArtistScreen> {
   Future<void> _load() async {
     final browseId = widget.artistInfo['videoId'] ?? widget.artistInfo['browseId'];
     if (browseId == null || browseId.isEmpty) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _error = "Invalid artist link.";
         });
+      }
       return;
     }
 
